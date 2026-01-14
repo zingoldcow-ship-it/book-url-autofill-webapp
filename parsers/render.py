@@ -25,7 +25,7 @@ def fetch_html_playwright(url: str, timeout_ms: int = 45000) -> Tuple[str, str]:
         page = context.new_page()
         page.set_default_navigation_timeout(timeout_ms)
         page.goto(url, wait_until="networkidle")
-        page.wait_for_timeout(800)
+        page.wait_for_timeout(900)
         html = page.content()
         final_url = page.url
         context.close()

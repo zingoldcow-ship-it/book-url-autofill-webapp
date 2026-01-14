@@ -11,15 +11,28 @@ COLUMN_KO={"site":"서점","url":"상품 URL","status":"처리상태","isbn":"IS
 
 def to_xlsx_bytes(df_raw: pd.DataFrame) -> bytes:
     df=df_raw.copy()
-    if "note" not in df.columns: df["note"]=""
+    if "note" not in df.columns:
+        df["note"]=""
 
-    if "site" in df.columns: df["site"]=df["site"].map(SITE_KO).fillna(df["site"])
-    if "status" in df.columns: df["status"]=df["status"].map(STATUS_KO).fillna(df["status"])
-    if "parse_mode" in df.columns: df["parse_mode"]=df["parse_mode"].map(PARSEMODE_KO).fillna(df["parse_mode"])
+    if "site" in df.columns:
+        df["site"]=df["site"].map(SITE_KO).fillna(df["site"])
+    if "status" in df.columns:
+        df["status"]=df["status"].map(STATUS_KO).fillna(df["status"])
+    if "parse_mode" in df.columns:
+        df["parse_mode"]=df["parse_mode"].map(PARSEMODE_KO).fillna(df["parse_mode"])
+
+    # --- Excel에서는 '처리상태' 컬럼 제거(요청 반영) ---
+    if "status" in df.columns:
+        df = df.drop(columns=["status"])
 
     df=df.rename(columns=COLUMN_KO)
-    preferred=["서점","상품 URL","처리상태","ISBN","도서명","저자","출판사","정가","판매가","비고","상품ID","처리방식","오류"]
-    cols=[c for c in preferred if c in df.columns]+[c for c in df.columns if c not in preferred]
+
+    # --- URL은 맨 오른쪽으로 ---
+    # 기본 컬럼 순서(요청: 처리상태 제외, URL 맨 오른쪽)
+    preferred=["서점","ISBN","도서명","저자","출판사","정가","판매가","비고","상품ID","처리방식","오류"]
+    cols=[c for c in preferred if c in df.columns] + [c for c in df.columns if c not in preferred and c != "상품 URL"]
+    if "상품 URL" in df.columns:
+        cols = cols + ["상품 URL"]
     df=df[cols]
 
     out=io.BytesIO()

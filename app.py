@@ -7,7 +7,7 @@ from utils.excel import to_xlsx_bytes
 
 st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
-st.title("📚 도서 URL 자동완성 웹앱 (완전체 v2)")
+st.title("📚 도서 URL 자동완성 웹앱 (완전체 v3)")
 st.caption("서점 상품 URL만 붙여넣으면 ISBN/도서명/저자/출판사/가격 정보가 자동으로 채워지고, 누적 후 엑셀로 내려받을 수 있어요.")
 
 with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
@@ -78,6 +78,11 @@ def normalize_urls(text: str) -> list[str]:
 def fmt_won(v):
     if v is None:
         return ""
+    try:
+        if pd.isna(v):
+            return ""
+    except Exception:
+        pass
     try:
         return f"{int(v):,}원"
     except Exception:

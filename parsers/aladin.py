@@ -1,5 +1,5 @@
 import re
-from .common import fetch_html, soup, extract_jsonld, pick_booklike, parse_price, scan_prices_from_text
+from .common import fetch_html, soup, extract_jsonld, pick_booklike, parse_price, scan_prices_from_text, scan_isbn
 from .render import fetch_html_playwright
 
 def _parse_from_html(final_url: str, html: str, product_id: str | None) -> dict:
@@ -35,13 +35,11 @@ def _parse_from_html(final_url: str, html: str, product_id: str | None) -> dict:
         og=s.find("meta", property="og:title")
         title=og.get("content").strip() if og and og.get("content") else None
 
+    text=s.get_text(" ", strip=True)
     if not isbn:
-        text=s.get_text(" ", strip=True)
-        m2=re.search(r"ISBN\s*[:\-]?\s*(97[89]\d{10})", text)
-        if m2: isbn=m2.group(1)
+        isbn = scan_isbn(text)
 
     if list_price is None or sale_price is None:
-        text=s.get_text(" ", strip=True)
         lp, sp = scan_prices_from_text(text)
         list_price=list_price or lp
         sale_price=sale_price or sp

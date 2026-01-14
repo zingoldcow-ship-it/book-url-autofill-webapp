@@ -53,6 +53,23 @@ def pick_booklike(jsonlds: list[dict]) -> Optional[dict]:
                     if t and any(k in str(t).lower() for k in ["book","product"]): return node
     return None
 
+def scan_isbn(text: str) -> Optional[str]:
+    # ISBN 키워드가 없어도 978/979로 시작하는 13자리 숫자를 찾음
+    t = re.sub(r"\s+", " ", text)
+    m = re.search(r"(97[89]\d{10})", t)
+    return m.group(1) if m else None
+
+def scan_publisher(text: str) -> Optional[str]:
+    # '출판사' 뒤에 오는 값을 최대 20자 정도 잡기(너무 길면 자름)
+    t = re.sub(r"\s+", " ", text)
+    m = re.search(r"출판사\s*[:\-]?\s*([가-힣A-Za-z0-9·&()\- ]{2,30})", t)
+    if not m:
+        return None
+    v = m.group(1).strip()
+    # 자주 따라오는 라벨 제거
+    v = re.split(r"(발행일|쪽수|정가|판매가|ISBN|저자)", v)[0].strip()
+    return v[:30] if v else None
+
 def scan_prices_from_text(text: str) -> tuple[Optional[int], Optional[int]]:
     t = re.sub(r"\s+", " ", text)
 
