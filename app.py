@@ -7,7 +7,7 @@ from utils.excel import to_xlsx_bytes
 
 st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
-st.title("📚 도서 URL 자동완성 웹앱 (완전체)")
+st.title("📚 도서 URL 자동완성 웹앱 (완전체 v2)")
 st.caption("서점 상품 URL만 붙여넣으면 ISBN/도서명/저자/출판사/가격 정보가 자동으로 채워지고, 누적 후 엑셀로 내려받을 수 있어요.")
 
 with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
@@ -15,19 +15,18 @@ with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
         """
 - 지원: **교보문고 / YES24 / 알라딘 / 영풍문고**
 - 사용:
-  1) 사용할 서점을 토글로 선택  
-  2) 상품 URL을 한 줄에 하나씩 입력(여러 줄 붙여넣기 가능)  
-  3) **파싱 실행** → 테이블 누적  
-  4) **엑셀 다운로드**  
+  1) 사용할 서점을 토글로 선택
+  2) 상품 URL을 한 줄에 하나씩 입력(여러 줄 붙여넣기 가능)
+  3) **파싱 실행** → 테이블 누적
+  4) **엑셀 다운로드**
 - 주의:
   - 일부 서점은 **동적 렌더링/봇 차단**으로 일반 요청 파싱이 실패할 수 있습니다.
   - 이 앱은 그런 경우를 대비해 **Playwright(헤드리스 브라우저) 백업 파싱**을 자동으로 사용합니다.
-  - 첫 실행에서 Playwright 브라우저(Chromium)를 자동 설치할 수 있어요. 설치 중에는 몇 분 정도 더 걸릴 수 있습니다.
-        """
+  """
     )
 
 if "rows" not in st.session_state:
-    st.session_state.rows = []  # list of dicts
+    st.session_state.rows = []
 
 colA, colB = st.columns([1, 2])
 
@@ -37,13 +36,7 @@ with colA:
     use_yes24 = st.toggle("YES24", value=True)
     use_aladin = st.toggle("알라딘", value=True)
     use_yp = st.toggle("영풍문고", value=True)
-
-    enabled_sites = {
-        "KYobo": use_kyobo,
-        "YES24": use_yes24,
-        "ALADIN": use_aladin,
-        "YPBOOKS": use_yp,
-    }
+    enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
 with colB:
     st.subheader("2) URL 입력")
@@ -53,12 +46,12 @@ with colB:
         placeholder="예)\nhttps://www.yes24.com/Product/Goods/168226997\nhttps://product.kyobobook.co.kr/detail/S000218972540\nhttps://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918\nhttps://www.ypbooks.co.kr/books/202512185684862499?idKey=33",
     )
 
-btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 2])
-with btn_col1:
+btn1, btn2, btn3 = st.columns([1, 1, 2])
+with btn1:
     run = st.button("🚀 파싱 실행", type="primary")
-with btn_col2:
+with btn2:
     clear = st.button("🧹 누적 초기화")
-with btn_col3:
+with btn3:
     st.caption("TIP: URL을 여러 줄 붙여넣고 한 번에 실행하면 편해요.")
 
 if clear:
@@ -74,15 +67,30 @@ def normalize_urls(text: str) -> list[str]:
         if not re.match(r"^https?://", line):
             continue
         urls.append(line)
-    # de-duplicate while preserving order
-    seen = set()
-    out = []
+    seen, out = set(), []
     for u in urls:
         if u in seen:
             continue
         seen.add(u)
         out.append(u)
     return out
+
+def fmt_won(v):
+    if v is None:
+        return ""
+    try:
+        return f"{int(v):,}원"
+    except Exception:
+        return str(v)
+
+STATUS_KO = {"success": "성공", "failed": "실패", "skipped": "제외"}
+PARSEMODE_KO = {"requests": "자동", "playwright": "브라우저", "skipped": "제외", "unknown": "알수없음", "exception": "오류"}
+COLUMN_KO = {
+    "site": "서점", "url": "상품 URL", "status": "처리상태", "isbn": "ISBN", "title": "도서명",
+    "author": "저자", "publisher": "출판사", "list_price": "정가", "sale_price": "판매가",
+    "product_id": "상품ID", "parse_mode": "처리방식", "error": "오류", "note": "비고",
+}
+SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YPBOOKS": "영풍문고"}
 
 if run:
     urls = normalize_urls(urls_text)
@@ -92,33 +100,48 @@ if run:
         progress = st.progress(0, text="파싱 중...")
         new_rows = []
         for i, url in enumerate(urls, start=1):
-            row = parse_any(url, enabled_sites=enabled_sites)
-            new_rows.append(row)
+            new_rows.append(parse_any(url, enabled_sites=enabled_sites))
             progress.progress(i / len(urls), text=f"파싱 중... ({i}/{len(urls)})")
         progress.empty()
+
+        existing = {str(r.get("isbn")).strip() for r in st.session_state.rows if r.get("isbn")}
+        for r in new_rows:
+            isbn = str(r.get("isbn")).strip() if r.get("isbn") else ""
+            if isbn and isbn in existing:
+                r["note"] = "⚠ 이미 추가된 도서"
+            elif isbn:
+                existing.add(isbn)
+
         st.session_state.rows.extend(new_rows)
         st.success(f"{len(new_rows)}개 URL을 처리했어요. 아래 테이블에 누적되었습니다.")
 
 st.subheader("3) 누적 결과")
 if st.session_state.rows:
-    df = pd.DataFrame(st.session_state.rows)
+    df_raw = pd.DataFrame(st.session_state.rows)
 
-    preferred_cols = [
-        "site", "url", "status",
-        "isbn", "title", "author", "publisher",
-        "list_price", "sale_price",
-        "product_id", "parse_mode", "error",
-    ]
-    cols = [c for c in preferred_cols if c in df.columns] + [c for c in df.columns if c not in preferred_cols]
-    df = df[cols]
+    df_view = df_raw.copy()
+    if "site" in df_view.columns:
+        df_view["site"] = df_view["site"].map(SITE_KO).fillna(df_view["site"])
+    if "status" in df_view.columns:
+        df_view["status"] = df_view["status"].map(STATUS_KO).fillna(df_view["status"])
+    if "parse_mode" in df_view.columns:
+        df_view["parse_mode"] = df_view["parse_mode"].map(PARSEMODE_KO).fillna(df_view["parse_mode"])
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    for c in ["list_price", "sale_price"]:
+        if c in df_view.columns:
+            df_view[c] = df_view[c].apply(fmt_won)
 
-    ok = df[df["status"] == "success"] if "status" in df.columns else df
-    st.caption(f"성공: {len(ok)} / 전체: {len(df)}")
+    df_view = df_view.rename(columns=COLUMN_KO)
+
+    preferred_cols = ["서점","상품 URL","처리상태","ISBN","도서명","저자","출판사","정가","판매가","비고","상품ID","처리방식","오류"]
+    cols = [c for c in preferred_cols if c in df_view.columns] + [c for c in df_view.columns if c not in preferred_cols]
+    st.dataframe(df_view[cols], use_container_width=True, hide_index=True)
+
+    ok = df_raw[df_raw["status"] == "success"] if "status" in df_raw.columns else df_raw
+    st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
 
     st.subheader("4) 엑셀 다운로드")
-    xbytes = to_xlsx_bytes(df)
+    xbytes = to_xlsx_bytes(df_raw)
     st.download_button(
         "⬇️ 결과 엑셀(.xlsx) 다운로드",
         data=xbytes,
