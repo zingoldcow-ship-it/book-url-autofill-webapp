@@ -7,7 +7,7 @@ from utils.excel import to_xlsx_bytes
 
 st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
-st.title("📚 도서 URL 자동완성 웹앱 (완전체 v3)")
+st.title("📚 도서 URL 자동완성 웹앱 (완전체 v4)")
 st.caption("서점 상품 URL만 붙여넣으면 ISBN/도서명/저자/출판사/가격 정보가 자동으로 채워지고, 누적 후 엑셀로 내려받을 수 있어요.")
 
 with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
@@ -15,14 +15,14 @@ with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
         """
 - 지원: **교보문고 / YES24 / 알라딘 / 영풍문고**
 - 사용:
-  1) 사용할 서점을 토글로 선택
-  2) 상품 URL을 한 줄에 하나씩 입력(여러 줄 붙여넣기 가능)
-  3) **파싱 실행** → 테이블 누적
-  4) **엑셀 다운로드**
+  1) 사용할 서점을 토글로 선택  
+  2) 상품 URL을 한 줄에 하나씩 입력(여러 줄 붙여넣기 가능)  
+  3) **파싱 실행** → 테이블 누적  
+  4) **엑셀 다운로드**  
 - 주의:
   - 일부 서점은 **동적 렌더링/봇 차단**으로 일반 요청 파싱이 실패할 수 있습니다.
   - 이 앱은 그런 경우를 대비해 **Playwright(헤드리스 브라우저) 백업 파싱**을 자동으로 사용합니다.
-  """
+        """
     )
 
 if "rows" not in st.session_state:

@@ -21,14 +21,13 @@ def to_xlsx_bytes(df_raw: pd.DataFrame) -> bytes:
     if "parse_mode" in df.columns:
         df["parse_mode"]=df["parse_mode"].map(PARSEMODE_KO).fillna(df["parse_mode"])
 
-    # --- Excel에서는 '처리상태' 컬럼 제거(요청 반영) ---
+    # Excel에서는 처리상태 컬럼 제거
     if "status" in df.columns:
         df = df.drop(columns=["status"])
 
     df=df.rename(columns=COLUMN_KO)
 
-    # --- URL은 맨 오른쪽으로 ---
-    # 기본 컬럼 순서(요청: 처리상태 제외, URL 맨 오른쪽)
+    # URL은 맨 오른쪽으로
     preferred=["서점","ISBN","도서명","저자","출판사","정가","판매가","비고","상품ID","처리방식","오류"]
     cols=[c for c in preferred if c in df.columns] + [c for c in df.columns if c not in preferred and c != "상품 URL"]
     if "상품 URL" in df.columns:

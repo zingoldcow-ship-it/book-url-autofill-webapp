@@ -36,7 +36,6 @@ def _parse_from_html(final_url: str, html: str, product_id: str | None) -> dict:
         title=og.get("content").strip() if og and og.get("content") else None
 
     text=s.get_text(" ", strip=True)
-
     if not isbn:
         isbn = scan_isbn(text)
 
