@@ -3,7 +3,7 @@ from .common import (
     fetch_html, soup, extract_jsonld, pick_booklike, parse_price,
     scan_prices_from_text, scan_isbn, scan_publisher, extract_next_data_prices
 )
-from .render import fetch_html_playwright
+from .render import fetch_html_playwright, extract_labeled_prices_playwright
 
 
 def _parse_from_html(final_url: str, html: str, product_id: str | None) -> dict:
@@ -48,20 +48,20 @@ def _parse_from_html(final_url: str, html: str, product_id: str | None) -> dict:
 
     text = s.get_text(" ", strip=True)
 
-    # 핵심: Next.js __NEXT_DATA__에서 가격 우선 추출(배송비/적립금 5,000원 오탐 방지)
+    # 1) Next.js __NEXT_DATA__ 우선
     nd_list, nd_sale = extract_next_data_prices(html)
     if list_price is None and nd_list is not None:
         list_price = nd_list
     if sale_price is None and nd_sale is not None:
         sale_price = nd_sale
 
-    # ISBN / publisher 강제 스캔
+    # 2) ISBN / publisher 강제 스캔
     if not isbn:
         isbn = scan_isbn(text)
     if not publisher:
         publisher = scan_publisher(text)
 
-    # 텍스트 기반 가격(정가/판매가 힌트 우선 + 금지어 근처 값 제외)
+    # 3) 텍스트 기반 가격(오탐 방지 로직 포함)
     if list_price is None or sale_price is None:
         lp, sp = scan_prices_from_text(text)
         list_price = list_price or lp
@@ -93,17 +93,28 @@ def parse_kyobo(url: str) -> dict:
     row = _parse_from_html(final_url, html, product_id)
     row["parse_mode"] = "requests"
 
-    # 교보는 requests가 5,000원 같은 값으로 오탐할 수 있어 playwright 재시도 트리거
+    # 교보: 5,000원 같은 오탐이면 '라벨 기반' playwright 추출로 교정
     price = row.get("sale_price") or row.get("list_price")
     if row["status"] == "success" and isinstance(price, int) and price <= 6000:
-        final_url2, html2 = fetch_html_playwright(url)
+        final_url2, html2, lp2, sp2 = extract_labeled_prices_playwright(url)
         row2 = _parse_from_html(final_url2, html2, product_id)
+        # 라벨 기반 가격을 우선 반영
+        if lp2 is not None:
+            row2["list_price"] = lp2
+        if sp2 is not None:
+            row2["sale_price"] = sp2
+        # 다시 한 번 상태 체크
+        p2 = row2.get("sale_price") or row2.get("list_price")
+        if p2 is not None and isinstance(p2, int) and p2 > 6000:
+            row2["status"] = "success"
+            row2["error"] = None
         row2["parse_mode"] = "playwright"
         return row2
 
     if row["status"] == "success":
         return row
 
+    # requests 실패면 일반 playwright html 파싱
     final_url2, html2 = fetch_html_playwright(url)
     row2 = _parse_from_html(final_url2, html2, product_id)
     row2["parse_mode"] = "playwright"
