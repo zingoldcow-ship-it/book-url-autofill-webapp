@@ -8,7 +8,7 @@ from utils.excel import to_xlsx_bytes
 st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
 st.title("📚 도서 정보 자동 채움")
-st.caption("서점 상품 URL을 입력하면 ISBN/도서명/저자/출판사/가격이 자동으로 채워집니다. 결과는 누적해 엑셀로 다운로드할 수 있습니다.")
+st.caption("URL을 입력하고 도서 정보 가져오기 버튼을 클릭하면 ISBN/도서명/저자/출판사/가격이 자동으로 채워집니다. 결과는 누적해 엑셀로 다운로드할 수 있습니다.")
 
 with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
     st.markdown(
