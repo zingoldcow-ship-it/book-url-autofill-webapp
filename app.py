@@ -7,8 +7,8 @@ from utils.excel import to_xlsx_bytes
 
 st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
-st.title("📚 도서 URL 자동완성 웹앱 (완전체 v10)")
-st.caption("서점 상품 URL만 붙여넣으면 ISBN/도서명/저자/출판사/가격 정보가 자동으로 채워지고, 누적 후 엑셀로 내려받을 수 있어요.")
+st.title("📚 도서 정보 자동 채움")
+st.caption("서점 상품 URL을 입력하면 ISBN/도서명/저자/출판사/가격이 자동으로 채워집니다. 결과는 누적해 엑셀로 다운로드할 수 있습니다.")
 
 with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
     st.markdown(
@@ -17,7 +17,7 @@ with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
 - 사용:
   1) 사용할 서점을 토글로 선택  
   2) 상품 URL을 한 줄에 하나씩 입력(여러 줄 붙여넣기 가능)  
-  3) **파싱 실행** → 테이블 누적  
+  3) **도서 정보 가져오기** → 테이블 누적  
   4) **엑셀 다운로드**  
 - 주의:
   - 일부 서점은 **동적 렌더링/봇 차단**으로 일반 요청 파싱이 실패할 수 있습니다.
@@ -48,11 +48,11 @@ with colB:
 
 btn1, btn2, btn3 = st.columns([1, 1, 2])
 with btn1:
-    run = st.button("🚀 파싱 실행", type="primary")
+    run = st.button("🚀 도서 정보 가져오기", type="primary")
 with btn2:
     clear = st.button("🧹 누적 초기화")
 with btn3:
-    st.caption("TIP: URL을 여러 줄 붙여넣고 한 번에 실행하면 편해요.")
+    st.caption("TIP: URL은 한 줄에 하나씩 입력해 주세요. (여러 줄 입력 가능)")
 
 if clear:
     st.session_state.rows = []
@@ -155,4 +155,4 @@ if st.session_state.rows:
         type="secondary",
     )
 else:
-    st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **파싱 실행**을 눌러보세요.")
+    st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")

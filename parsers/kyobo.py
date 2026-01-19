@@ -7,28 +7,9 @@ from .render import fetch_html_playwright, extract_kyobo_prices_playwright
 
 
 def _is_out_of_stock(html: str) -> bool:
-    """교보문고 품절/판매중지/재고없음 감지.
-
-    raw HTML에는 스크립트/혜택/템플릿 문자열이 섞여 오탐이 날 수 있어
-    가능한 한 BeautifulSoup의 가시 텍스트(get_text)에서만 판정한다.
-    """
-    try:
-        text = soup(html).get_text(" ", strip=True)
-    except Exception:
-        text = html or ""
-
-    # 흔한 패턴(페이지 어딘가에 존재할 수 있는 일반 문구)은 제외하고,
-    # 실제 '품절/절판/판매중지/구매불가'를 의미하는 표현 위주로만 감지한다.
-    patterns = [
-        r"재고\s*사정.*품절",
-        r"일시\s*품절",
-        r"현재\s*품절",
-        r"품절\s*도서",
-        r"절판",
-        r"판매\s*중지",
-        r"구매\s*불가",
-    ]
-    return any(re.search(p, text) for p in patterns)
+    # 교보문고 품절/판매중지/재고없음 케이스 텍스트 기반 감지
+    keywords = ["품절", "일시품절", "재고 없음", "판매 중지", "구매 불가"]
+    return any(k in html for k in keywords)
 
 
 def _parse_from_html(final_url: str, html: str, product_id: str | None) -> dict:
@@ -122,15 +103,13 @@ def parse_kyobo(url: str) -> dict:
 
     # 2) 가격은 교보에서 오탐이 잦으므로 '의심'이면 곧바로 playwright kyobo 전용 가격 추출로 교정
     
-    # 품절/재고없음이면 '가격만' 0 처리(요청사항)
-    # - 나머지(제목/ISBN/저자/출판사)는 기존 로직 그대로 유지
-    # - 품절은 정상 구매 불가 상태이므로 status는 failed로 두되, 가격만 0으로 고정
+    # 품절이면 가격을 None 처리
     if _is_out_of_stock(html):
-        row["list_price"] = 0
-        row["sale_price"] = 0
+        row["sale_price"] = None
+        row["list_price"] = row.get("list_price")
         row["status"] = "failed"
-        row["error"] = "품절/재고없음 도서"
-        row["parse_mode"] = "requests"
+        row["error"] = "품절 도서"
+        row["parse_mode"] = "브라우저"
         return row
 
     p = row.get("sale_price") or row.get("list_price")
@@ -139,15 +118,6 @@ def parse_kyobo(url: str) -> dict:
         final_url2, html2, lp2, sp2 = extract_kyobo_prices_playwright(url)
         # playwright로 얻은 html로 다시 파싱(정보가 더 풍부할 수 있음)
         row2 = _parse_from_html(final_url2, html2, product_id)
-
-        # playwright 렌더링에서만 품절 문구가 노출되는 케이스 처리
-        if _is_out_of_stock(html2):
-            row2["list_price"] = 0
-            row2["sale_price"] = 0
-            row2["status"] = "failed"
-            row2["error"] = "품절/재고없음 도서"
-            row2["parse_mode"] = "playwright"
-            return row2
         if lp2 is not None:
             row2["list_price"] = lp2
         if sp2 is not None:
