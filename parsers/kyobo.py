@@ -103,15 +103,13 @@ def parse_kyobo(url: str) -> dict:
 
     # 2) 가격은 교보에서 오탐이 잦으므로 '의심'이면 곧바로 playwright kyobo 전용 가격 추출로 교정
     
-    # 품절/재고없음 도서는 "가격만" 0으로 강제하고 나머지 메타데이터는 그대로 유지
-    # (교보문고 페이지에서 배송비(예: 5,000원)가 가격으로 오탐되는 케이스 방지)
+    # 품절이면 가격을 None 처리
     if _is_out_of_stock(html):
-        row["list_price"] = 0
-        row["sale_price"] = 0
-        # 품절은 파싱 실패가 아니므로 status는 원래 파싱 결과를 존중
-        row["status"] = "success" if (row.get("title") or row.get("isbn")) else "failed"
+        row["sale_price"] = None
+        row["list_price"] = row.get("list_price")
+        row["status"] = "failed"
         row["error"] = "품절 도서"
-        row["parse_mode"] = "requests"
+        row["parse_mode"] = "브라우저"
         return row
 
     p = row.get("sale_price") or row.get("list_price")
@@ -120,16 +118,6 @@ def parse_kyobo(url: str) -> dict:
         final_url2, html2, lp2, sp2 = extract_kyobo_prices_playwright(url)
         # playwright로 얻은 html로 다시 파싱(정보가 더 풍부할 수 있음)
         row2 = _parse_from_html(final_url2, html2, product_id)
-
-        # 렌더링 이후에야 품절 문구가 나타나는 경우가 있어 추가로 확인
-        if _is_out_of_stock(html2):
-            row2["list_price"] = 0
-            row2["sale_price"] = 0
-            row2["status"] = "success" if (row2.get("title") or row2.get("isbn")) else "failed"
-            row2["error"] = "품절 도서"
-            row2["parse_mode"] = "playwright"
-            return row2
-
         if lp2 is not None:
             row2["list_price"] = lp2
         if sp2 is not None:
