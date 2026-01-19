@@ -8,7 +8,20 @@ from .render import fetch_html_playwright, extract_kyobo_prices_playwright
 
 def _is_out_of_stock(html: str) -> bool:
     # 교보문고 품절/판매중지/재고없음 케이스 텍스트 기반 감지
-    keywords = ["품절", "일시품절", "재고 없음", "판매 중지", "구매 불가"]
+    # NOTE: 교보 페이지는 SSR/CSR 전환에 따라 문구가 조금씩 달라질 수 있어
+    #       "재고사정" 같은 변형도 함께 잡는다.
+    keywords = [
+        "품절",
+        "일시품절",
+        "재고 없음",
+        "재고없음",
+        "재고 사정",
+        "재고사정",
+        "판매 중지",
+        "판매중지",
+        "구매 불가",
+        "구매불가",
+    ]
     return any(k in html for k in keywords)
 
 
@@ -102,11 +115,11 @@ def parse_kyobo(url: str) -> dict:
     row["parse_mode"] = "requests"
 
     # 2) 가격은 교보에서 오탐이 잦으므로 '의심'이면 곧바로 playwright kyobo 전용 가격 추출로 교정
-    
-    # 품절이면 가격을 None 처리
+
+    # 품절이면 가격을 None 처리 (requests HTML 기준)
     if _is_out_of_stock(html):
         row["sale_price"] = None
-        row["list_price"] = row.get("list_price")
+        row["list_price"] = None
         row["status"] = "failed"
         row["error"] = "품절 도서"
         row["parse_mode"] = "브라우저"
@@ -116,6 +129,18 @@ def parse_kyobo(url: str) -> dict:
 
     if _is_suspicious(p):
         final_url2, html2, lp2, sp2 = extract_kyobo_prices_playwright(url)
+
+        # playwright로 로딩된 화면에서 품절이 확인되면 가격을 비운다.
+        # (품절 페이지에서 배송비/혜택(예: 5,000원)이 가격으로 오탐되는 문제 방지)
+        if _is_out_of_stock(html2):
+            row2 = _parse_from_html(final_url2, html2, product_id)
+            row2["list_price"] = None
+            row2["sale_price"] = None
+            row2["status"] = "failed"
+            row2["error"] = "품절 도서"
+            row2["parse_mode"] = "브라우저"
+            return row2
+
         # playwright로 얻은 html로 다시 파싱(정보가 더 풍부할 수 있음)
         row2 = _parse_from_html(final_url2, html2, product_id)
         if lp2 is not None:
