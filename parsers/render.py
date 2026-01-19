@@ -26,21 +26,66 @@ def fetch_html_playwright(url: str, timeout_ms: int = 45000) -> Tuple[str, str]:
         page = context.new_page()
         page.set_default_navigation_timeout(timeout_ms)
         page.goto(url, wait_until="networkidle")
-        page.wait_for_timeout(900)
+        page.wait_for_timeout(1200)
         html = page.content()
         final_url = page.url
         context.close()
         browser.close()
         return final_url, html
 
-def extract_labeled_prices_playwright(url: str, timeout_ms: int = 45000) -> Tuple[str, str, Optional[int], Optional[int]]:
-    """브라우저 렌더링 후, '판매가/정가' 라벨 근처에서 가격을 직접 뽑아온다.
-    교보문고의 5,000원 오탐(배송비/혜택/적립금)을 피하기 위해 사용.
+def extract_kyobo_prices_playwright(url: str, timeout_ms: int = 45000) -> Tuple[str, str, Optional[int], Optional[int]]:
+    """교보문고 상세페이지에서 가격을 확실하게 뽑기 위한 Kyobo 전용 추출.
+    사용자 제공 XPath(구조 고정형) + 라벨 기반 fallback을 함께 사용.
 
-    반환: (final_url, html, list_price, sale_price)
+    반환: (final_url, html, list_price(정가), sale_price(할인가/판매가))
     """
     ensure_playwright_installed()
     from playwright.sync_api import sync_playwright
+
+    KYOB0_SALE_XPATHS = [
+        # 사용자 제공(할인가/판매가)
+        "/html/body/div[3]/main/section[2]/div[1]/div/div[2]/div/div[3]/div[1]/div[2]/div/span[2]/span",
+    ]
+    KYOB0_LIST_XPATHS = [
+        # 사용자 제공(정가)
+        "/html/body/div[3]/main/section[2]/div[1]/div/div[2]/div/div[3]/div[1]/div[2]/div/span[3]/s",
+    ]
+
+    def first_price_by_xpaths(page, xpaths) -> Optional[int]:
+        for xp in xpaths:
+            try:
+                loc = page.locator(f"xpath={xp}")
+                if loc.count() == 0:
+                    continue
+                txt = loc.first.inner_text().strip()
+                v = parse_price(txt)
+                if v is not None:
+                    return v
+            except Exception:
+                continue
+        return None
+
+    def pick_following_price(page, label_text: str) -> Optional[int]:
+        try:
+            loc = page.locator(
+                f"xpath=//*[normalize-space(text())='{label_text}' or contains(normalize-space(.), '{label_text}')]"
+            ).first
+            if loc.count() == 0:
+                return None
+            cand = loc.locator("xpath=following::*[contains(., '원')]")
+            n = min(cand.count(), 12)
+            vals = []
+            for i in range(n):
+                txt = cand.nth(i).inner_text().strip()
+                v = parse_price(txt)
+                if v is None:
+                    continue
+                if v <= 6000:
+                    continue
+                vals.append(v)
+            return max(vals) if vals else None
+        except Exception:
+            return None
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
@@ -48,36 +93,20 @@ def extract_labeled_prices_playwright(url: str, timeout_ms: int = 45000) -> Tupl
         page = context.new_page()
         page.set_default_navigation_timeout(timeout_ms)
         page.goto(url, wait_until="networkidle")
-        page.wait_for_timeout(1400)
+        page.wait_for_timeout(1600)
 
-        def pick_by_label(label: str) -> Optional[int]:
-            try:
-                loc = page.locator(f"xpath=//*[contains(normalize-space(.), '{label}')]").first
-                if loc.count() == 0:
-                    return None
+        sale = first_price_by_xpaths(page, KYOB0_SALE_XPATHS)
+        listp = first_price_by_xpaths(page, KYOB0_LIST_XPATHS)
 
-                # 라벨이 포함된 노드의 상위 컨테이너 몇 단계까지 확장하면서 '원' 포함 텍스트 후보 탐색
-                for up in range(1, 5):
-                    scope = loc.locator(f"xpath=ancestor::*[{up}]")
-                    cand = scope.locator("xpath=.//*[contains(., '원')]")
-                    n = min(cand.count(), 30)
-                    best = None
-                    for i in range(n):
-                        txt = cand.nth(i).inner_text().strip()
-                        val = parse_price(txt)
-                        if val is None:
-                            continue
-                        if val <= 6000:  # 혜택/배송비 방지
-                            continue
-                        best = val if best is None else max(best, val)
-                    if best is not None:
-                        return best
-            except Exception:
-                return None
-            return None
-
-        sale = pick_by_label("판매가") or pick_by_label("최종 판매가") or pick_by_label("할인가")
-        listp = pick_by_label("정가")
+        # fallback: 라벨 기반
+        if sale is None:
+            sale = (
+                pick_following_price(page, "최종 판매가")
+                or pick_following_price(page, "판매가")
+                or pick_following_price(page, "할인가")
+            )
+        if listp is None:
+            listp = pick_following_price(page, "정가")
 
         html = page.content()
         final_url = page.url
