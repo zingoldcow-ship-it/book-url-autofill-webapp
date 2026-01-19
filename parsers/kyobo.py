@@ -7,23 +7,23 @@ from .render import fetch_html_playwright, extract_kyobo_prices_playwright
 
 
 def _is_out_of_stock(html: str) -> bool:
-    """교보문고 품절/판매중지 감지.
+    """교보문고 품절/판매중지/재고없음 감지.
 
-    raw HTML(스크립트/JSON 포함)에서 단순 키워드 포함 여부로 판단하면
-    템플릿/안내 문구에 의해 모든 도서가 '품절'로 오인될 수 있어,
-    **가시 텍스트** 기반으로만 판정한다.
+    raw HTML에는 스크립트/혜택/템플릿 문자열이 섞여 오탐이 날 수 있어
+    가능한 한 BeautifulSoup의 가시 텍스트(get_text)에서만 판정한다.
     """
+    try:
+        text = soup(html).get_text(" ", strip=True)
+    except Exception:
+        text = html or ""
 
-    text = soup(html).get_text(" ", strip=True)
-    if not text:
-        return False
-
-    # '재고 없음' 등은 템플릿에 상시 포함되는 경우가 있어 제외하고,
-    # 실제 품절 표현(품절/일시품절/절판/판매중지/구매불가) 위주로 판단.
+    # 흔한 패턴(페이지 어딘가에 존재할 수 있는 일반 문구)은 제외하고,
+    # 실제 '품절/절판/판매중지/구매불가'를 의미하는 표현 위주로만 감지한다.
     patterns = [
-        r"재고\s*사정[^\n]{0,20}품절",   # 예: '재고 사정에 의해 품절'
+        r"재고\s*사정.*품절",
         r"일시\s*품절",
-        r"\b품절\b",
+        r"현재\s*품절",
+        r"품절\s*도서",
         r"절판",
         r"판매\s*중지",
         r"구매\s*불가",
@@ -122,14 +122,14 @@ def parse_kyobo(url: str) -> dict:
 
     # 2) 가격은 교보에서 오탐이 잦으므로 '의심'이면 곧바로 playwright kyobo 전용 가격 추출로 교정
     
-    # 품절/재고없음 도서는 "가격만" 0으로 강제하고 나머지 메타데이터는 그대로 유지
-    # (교보문고 페이지에서 배송비(예: 5,000원)가 가격으로 오탐되는 케이스 방지)
+    # 품절/재고없음이면 '가격만' 0 처리(요청사항)
+    # - 나머지(제목/ISBN/저자/출판사)는 기존 로직 그대로 유지
+    # - 품절은 정상 구매 불가 상태이므로 status는 failed로 두되, 가격만 0으로 고정
     if _is_out_of_stock(html):
         row["list_price"] = 0
         row["sale_price"] = 0
-        # 품절은 파싱 실패가 아니므로 status는 원래 파싱 결과를 존중
-        row["status"] = "success" if (row.get("title") or row.get("isbn")) else "failed"
-        row["error"] = "품절 도서"
+        row["status"] = "failed"
+        row["error"] = "품절/재고없음 도서"
         row["parse_mode"] = "requests"
         return row
 
@@ -140,15 +140,14 @@ def parse_kyobo(url: str) -> dict:
         # playwright로 얻은 html로 다시 파싱(정보가 더 풍부할 수 있음)
         row2 = _parse_from_html(final_url2, html2, product_id)
 
-        # 렌더링 이후에야 품절 문구가 나타나는 경우가 있어 추가로 확인
+        # playwright 렌더링에서만 품절 문구가 노출되는 케이스 처리
         if _is_out_of_stock(html2):
             row2["list_price"] = 0
             row2["sale_price"] = 0
-            row2["status"] = "success" if (row2.get("title") or row2.get("isbn")) else "failed"
-            row2["error"] = "품절 도서"
+            row2["status"] = "failed"
+            row2["error"] = "품절/재고없음 도서"
             row2["parse_mode"] = "playwright"
             return row2
-
         if lp2 is not None:
             row2["list_price"] = lp2
         if sp2 is not None:
