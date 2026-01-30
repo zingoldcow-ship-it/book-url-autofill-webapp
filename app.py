@@ -28,35 +28,47 @@ with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
 if "rows" not in st.session_state:
     st.session_state.rows = []
 
+# URL 입력 자동 정리: 붙여넣기 시 공백/탭으로 들어온 URL을 자동 줄바꿈 처리
+if "url_input" not in st.session_state:
+    st.session_state.url_input = ""
+
+def _normalize_url_input():
+    text = st.session_state.get("url_input", "") or ""
+    # 공백/탭/줄바꿈 어디로 붙여넣어도 URL만 뽑아 한 줄에 하나씩 정리
+    urls = re.findall(r"https?://\S+", text)
+    st.session_state.url_input = "\n".join(urls)
+
+# 버튼 상태 초기화
+run = False
+
 colA, colB = st.columns([1, 2])
 
 with colA:
     st.subheader("1) 서점 선택")
-    use_kyobo = st.toggle("교보문고", value=True)
-    use_yes24 = st.toggle("YES24", value=True)
-    use_aladin = st.toggle("알라딘", value=True)
-    use_yp = st.toggle("영풍문고", value=True)
+    use_kyobo = st.toggle("교보문고", value=False)
+    use_yes24 = st.toggle("YES24", value=False)
+    use_aladin = st.toggle("알라딘", value=False)
+    use_yp = st.toggle("영풍문고", value=False)
     enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
 with colB:
     st.subheader("2) URL 입력")
     urls_text = st.text_area(
         "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
-        height=140,
-        placeholder="예)\nhttps://www.yes24.com/Product/Goods/168226997\nhttps://product.kyobobook.co.kr/detail/S000218972540\nhttps://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918\nhttps://www.ypbooks.co.kr/books/202512185684862499?idKey=33",
+        height=160,
+        key="url_input",
+        on_change=_normalize_url_input,
+        placeholder="""예)
+https://www.yes24.com/Product/Goods/168226997
+https://product.kyobobook.co.kr/detail/S000218972540
+https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918
+https://www.ypbooks.co.kr/books/202512185684862499?idKey=33""",
     )
 
-btn1, btn2, btn3 = st.columns([1, 1, 2])
-with btn1:
-    run = st.button("🚀 도서 정보 가져오기", type="primary")
-with btn2:
-    clear = st.button("🧹 누적 초기화")
-with btn3:
-    st.caption("TIP: URL은 한 줄에 하나씩 입력해 주세요. (여러 줄 입력 가능)")
+    # URL 입력 영역 아래: TIP → 실행 버튼(도서 정보 가져오기)
+    st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
+    run = st.button("🚀 도서 정보 가져오기", type="primary", use_container_width=False)
 
-if clear:
-    st.session_state.rows = []
-    st.toast("누적 데이터를 초기화했어요.", icon="🧹")
 
 def normalize_urls(text: str) -> list[str]:
     urls = []
@@ -120,7 +132,16 @@ if run:
         st.session_state.rows.extend(new_rows)
         st.success(f"{len(new_rows)}개 URL을 처리했어요. 아래 테이블에 누적되었습니다.")
 
-st.subheader("3) 누적 결과")
+# 3) 누적 결과 제목 + 누적 초기화 버튼(오른쪽)
+h1, h2 = st.columns([6, 1])
+with h1:
+    st.subheader("3) 누적 결과")
+with h2:
+    clear = st.button("🧹 누적 초기화", use_container_width=True)
+if clear:
+    st.session_state.rows = []
+    st.toast("누적 데이터를 초기화했어요.", icon="🧹")
+
 if st.session_state.rows:
     df_raw = pd.DataFrame(st.session_state.rows)
 
