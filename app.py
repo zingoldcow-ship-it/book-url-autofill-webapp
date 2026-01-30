@@ -20,6 +20,19 @@ div[data-testid="stDownloadButton"] button {
 }
 /* Slightly reduce default gap above/below elements */
 .block-container { padding-top: 2rem; }
+
+/* Card UI */
+.stApp { background-color: #f6f8fb; }
+.card {
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 18px;
+  padding: 18px 18px 14px 18px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+.card + .card { margin-top: 16px; }
+.card-title { margin: 0 0 10px 0; }
+.card-muted { color: rgba(0,0,0,0.55); font-size: 0.9rem; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -121,6 +134,7 @@ SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YP
 colA, colB = st.columns([1, 2])
 
 with colA:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("1) 서점 선택")
     # 기본 OFF로 변경
     use_kyobo = st.toggle("교보문고", value=False)
@@ -129,7 +143,10 @@ with colA:
     use_yp = st.toggle("영풍문고", value=False)
     enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
 with colB:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("2) URL 입력")
     st.text_area(
         "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
@@ -140,6 +157,7 @@ with colB:
     )
     st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
     run = st.button("🚀 도서 정보 가져오기", type="primary")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------
 # Actions
@@ -166,6 +184,8 @@ if run:
 
         st.session_state.rows.extend(new_rows)
         st.success(f"{len(new_rows)}개 URL을 처리했어요. 아래 테이블에 누적되었습니다.")
+
+st.markdown('<div class="card">', unsafe_allow_html=True)
 
 # ---------------------------
 # Section 3: Header + Buttons (Reset + Download) in same row, close to title
@@ -225,3 +245,6 @@ if st.session_state.rows:
     st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
 else:
     st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")
+
+
+st.markdown('</div>', unsafe_allow_html=True)
