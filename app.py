@@ -167,7 +167,7 @@ colA, colB = st.columns([1, 2])
 with colA:
     st.subheader(with st.container(border=True):
     st.markdown('<div class="card-base card-blue">', unsafe_allow_html=True)
-🛒 서점 선택)
+st.markdown("🛒 서점 선택)", unsafe_allow_html=False)
     # 기본 OFF로 변경
     use_kyobo = st.toggle("교보문고", value=False)
     use_yes24 = st.toggle("YES24", value=False)
@@ -179,7 +179,7 @@ with colB:
     st.subheader(    st.markdown('</div>', unsafe_allow_html=True)
 with st.container(border=True):
     st.markdown('<div class="card-base card-pink">', unsafe_allow_html=True)
-🔗 URL 입력)
+st.markdown("🔗 URL 입력)", unsafe_allow_html=False)
     st.text_area(
         "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
         key=URLS_KEY,
@@ -226,7 +226,7 @@ with h_col1:
     st.markdown("###     st.markdown('</div>', unsafe_allow_html=True)
 with st.container(border=True):
     st.markdown('<div class="card-base card-yellow">', unsafe_allow_html=True)
-📊 누적 결과")
+st.markdown("📊 누적 결과")", unsafe_allow_html=False)
 
 with h_col2:
     st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
