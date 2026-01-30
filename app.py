@@ -2,6 +2,7 @@ import re
 import pandas as pd
 import streamlit as st
 
+import streamlit.components.v1 as components
 from parsers import parse_any
 from utils.excel import to_xlsx_bytes
 
@@ -68,6 +69,59 @@ div[data-testid="stDownloadButton"] button{
     unsafe_allow_html=True,
 )
 
+
+
+components.html(
+    """
+<script>
+(function() {
+  function applyCardColors() {
+    const markers = document.querySelectorAll('.card-marker[data-card]');
+    if (!markers || markers.length === 0) return false;
+
+    const colors = {
+      blue: '#F2F6FF',
+      pink: '#FFF2F5',
+      yellow: '#FFF9E8'
+    };
+
+    markers.forEach(m => {
+      const key = m.getAttribute('data-card');
+      const bg = colors[key] || 'transparent';
+      // climb to the Streamlit bordered container wrapper
+      let el = m;
+      while (el && el !== document.body) {
+        if (el.getAttribute && el.getAttribute('data-testid') === 'stVerticalBlockBorderWrapper') {
+          el.style.background = bg;
+          el.style.borderRadius = '18px';
+          el.style.border = '1px solid rgba(0,0,0,0.07)';
+          el.style.boxShadow = '0 1px 8px rgba(0,0,0,0.05)';
+          el.style.overflow = 'hidden';
+          break;
+        }
+        el = el.parentElement;
+      }
+    });
+    return true;
+  }
+
+  // Try immediately and also after Streamlit rerenders
+  let tries = 0;
+  const timer = setInterval(() => {
+    tries += 1;
+    const ok = applyCardColors();
+    if (ok || tries > 40) clearInterval(timer);
+  }, 250);
+
+  // Also observe DOM changes (Streamlit reruns)
+  const obs = new MutationObserver(() => applyCardColors());
+  obs.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+""",
+    height=0,
+)
+
 # --- Global CSS: button heights + tighter header row ---
 st.markdown(
     """
@@ -86,7 +140,7 @@ div[data-testid="stDownloadButton"] button {
     unsafe_allow_html=True,
 )
 
-st.title("📚 도서 정보 자동 채움")
+st.title("📚 도서 정보 자동 채움 웹앱")
 st.caption(
     "URL을 입력하고 도서 정보 가져오기 버튼을 클릭하면 ISBN/도서명/저자/출판사/가격이 자동으로 채워집니다. "
     "결과는 누적해 엑셀로 다운로드할 수 있습니다."
@@ -183,7 +237,10 @@ colA, colB = st.columns([1, 2], gap="large")
 
 with colA:
     with st.container(border=True):
-        st.markdown('<div class="card-bg blue"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-marker" data-card="yellow"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-marker" data-card="pink"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-marker" data-card="blue"></div>', unsafe_allow_html=True)
+
         st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
 
         # 기본 OFF
@@ -195,7 +252,7 @@ with colA:
 
 with colB:
     with st.container(border=True):
-        st.markdown('<div class="card-bg pink"></div>', unsafe_allow_html=True)
+
         st.markdown('<div class="card-title">🔗 URL 입력</div>', unsafe_allow_html=True)
 
         st.text_area(
@@ -240,7 +297,7 @@ if run:
 # 타이틀과 버튼 간격을 최대한 붙이기 위해, 첫 컬럼 폭을 줄이고 버튼 컬럼을 바로 옆에 배치합니다.
 
 with st.container(border=True):
-    st.markdown('<div class="card-bg yellow"></div>', unsafe_allow_html=True)
+
     h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
 
     with h_col1:
