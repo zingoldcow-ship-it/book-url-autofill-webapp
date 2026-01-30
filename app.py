@@ -11,9 +11,8 @@ st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
 st.markdown(
     """
-
 <style>
-/* ---------- Card UI: stable coloring via markers ---------- */
+/* ---------- Card UI (no nested cards, no :has) ---------- */
 div[data-testid="stVerticalBlockBorderWrapper"]{
     border-radius: 18px !important;
     border: 1px solid rgba(0,0,0,0.07) !important;
@@ -24,37 +23,40 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
 /* Consistent inner spacing */
 div[data-testid="stVerticalBlockBorderWrapper"] > div{
     padding: 18px 20px 16px 20px !important;
+    background: transparent !important;
 }
 
-/* Marker is inserted right before each bordered container */
-.stMarkdown:has(.card-marker.card-store) + div[data-testid="stVerticalBlockBorderWrapper"]{
-    background: #F2F6FF !important; /* 서점 선택 (연한 파랑) */
-}
-.stMarkdown:has(.card-marker.card-url) + div[data-testid="stVerticalBlockBorderWrapper"]{
-    background: #FFF2F5 !important; /* URL 입력 (연한 핑크) */
-}
-.stMarkdown:has(.card-marker.card-result) + div[data-testid="stVerticalBlockBorderWrapper"]{
-    background: #FFF9E8 !important; /* 누적 결과 (연한 노랑) */
+/* --- Card background colors --- */
+/* 1) Top row (2 columns): left=서점(파랑), right=URL(핑크) */
+section.main .block-container div[data-testid="stHorizontalBlock"]:first-of-type
+  > div[data-testid="stColumn"]:nth-child(1)
+  div[data-testid="stVerticalBlockBorderWrapper"]{
+    background: #F2F6FF !important;
 }
 
-/* Hide marker visually */
-.card-marker{ display:none; height:0; padding:0; margin:0; }
+section.main .block-container div[data-testid="stHorizontalBlock"]:first-of-type
+  > div[data-testid="stColumn"]:nth-child(2)
+  div[data-testid="stVerticalBlockBorderWrapper"]{
+    background: #FFF2F5 !important;
+}
+
+/* 2) Bottom (results) card: last bordered wrapper on the page */
+section.main .block-container div[data-testid="stVerticalBlockBorderWrapper"]:last-of-type{
+    background: #FFF9E8 !important;
+}
 
 /* Titles */
 .card-title{
     font-size: 1.55rem;
     font-weight: 800;
     line-height: 1.15;
-    margin: 0 0 10px 0;
+    margin: 0;          /* important for header alignment */
     white-space: nowrap;
 }
 </style>
-
     """,
     unsafe_allow_html=True,
 )
-
-
 # --- Global CSS: button heights + tighter header row ---
 st.markdown(
     """
@@ -168,9 +170,7 @@ SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YP
 # ---------------------------
 colA, colB = st.columns([1, 2], gap="large")
 
-with colA:
-    st.markdown('<div class="card-marker card-store"></div>', unsafe_allow_html=True)
-    with st.container(border=True):
+with colA:    with st.container(border=True):
 
         st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
 
@@ -181,9 +181,7 @@ with colA:
         use_yp = st.toggle("영풍문고", value=False)
         enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
-with colB:
-    st.markdown('<div class="card-marker card-url"></div>', unsafe_allow_html=True)
-    with st.container(border=True):
+with colB:    with st.container(border=True):
 
         st.markdown('<div class="card-title">🔗 URL 입력</div>', unsafe_allow_html=True)
 
@@ -226,27 +224,18 @@ if run:
 # ---------------------------
 # Section 3: Header + Buttons (Reset + Download) in same row, close to title
 # ---------------------------
-# 타이틀과 버튼 간격을 최대한 붙이기 위해, 첫 컬럼 폭을 줄이고 버튼 컬럼을 바로 옆에 배치합니다.
+# 타이틀과 버튼 간격을 최대한 붙이기 위해, 첫 컬럼 폭을 줄이고 버튼 컬럼을 바로 옆에 배치합니다.with st.container(border=True):
 
-st.markdown('<div class=\"card-marker card-result\"></div>', unsafe_allow_html=True)
-
-st.markdown('<div class=\"card-marker card-result\"></div>', unsafe_allow_html=True)
-
-with st.container(border=True):
-
-    h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
-
-    with h_col1:
+    h_col1, h_col2, h_col3 = st.columns([2.6, 2.2, 3.2], vertical_alignment="center")
+with h_col1:
         st.markdown('<div class="card-title">📊 누적 결과</div>', unsafe_allow_html=True)
 
     with h_col2:
-        st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
-        clear = st.button("🧹 누적 초기화", use_container_width=True)
+                clear = st.button("🧹 누적 초기화", use_container_width=True)
 
     with h_col3:
         if st.session_state.rows:
-            st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
-            df_raw_for_excel = pd.DataFrame(st.session_state.rows)
+                        df_raw_for_excel = pd.DataFrame(st.session_state.rows)
             xbytes = to_xlsx_bytes(df_raw_for_excel)
             st.download_button(
                 "📥 결과 엑셀(.xlsx) 다운로드",
