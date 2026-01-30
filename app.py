@@ -171,22 +171,22 @@ if run:
 # Section 3: Header + Buttons (Reset + Download) in same row, close to title
 # ---------------------------
 # 타이틀과 버튼 간격을 최대한 붙이기 위해, 첫 컬럼 폭을 줄이고 버튼 컬럼을 바로 옆에 배치합니다.
-h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.55, 6.25])
+h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
 
 with h_col1:
-    st.subheader("3) 누적 결과")
+    st.markdown("### 3) 누적 결과")
 
 with h_col2:
-    st.markdown("<div style='margin-top:6px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
     clear = st.button("🧹 누적 초기화", use_container_width=True)
 
 with h_col3:
     if st.session_state.rows:
-        st.markdown("<div style='margin-top:6px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
         df_raw_for_excel = pd.DataFrame(st.session_state.rows)
         xbytes = to_xlsx_bytes(df_raw_for_excel)
         st.download_button(
-            "⬇ 결과 엑셀(.xlsx) 다운로드",
+            "📥 결과 엑셀(.xlsx) 다운로드",
             data=xbytes,
             file_name="도서_자동완성_결과.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
