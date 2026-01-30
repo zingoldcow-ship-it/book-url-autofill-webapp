@@ -20,31 +20,7 @@ div[data-testid="stDownloadButton"] button {
 }
 /* Slightly reduce default gap above/below elements */
 .block-container { padding-top: 2rem; }
-
-    /* Card containers */
-    .vc-card {
-        background: #ffffff;
-        border: 1px solid rgba(49,51,63,0.12);
-        border-radius: 16px;
-        padding: 18px 18px 14px 18px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-        margin-bottom: 18px;
-    }
-    .vc-card h3, .vc-card h2, .vc-card h4 {
-        margin-top: 0 !important;
-    }
-    .vc-card-title {
-        font-size: 1.45rem;
-        font-weight: 800;
-        margin: 0 0 10px 0;
-    }
-    .vc-muted {
-        color: rgba(49,51,63,0.65);
-        font-size: 0.92rem;
-        margin-top: 4px;
-    }
 </style>
-
 """,
     unsafe_allow_html=True,
 )
@@ -145,36 +121,25 @@ SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YP
 colA, colB = st.columns([1, 2])
 
 with colA:
-st.markdown('<div class="vc-card">', unsafe_allow_html=True)
-st.markdown('<div class="vc-card-title">1) 서점 선택</div>', unsafe_allow_html=True)
-# 기본 OFF로 변경
-use_kyobo = st.toggle("교보문고", value=False)
-use_yes24 = st.toggle("YES24", value=False)
-use_aladin = st.toggle("알라딘", value=False)
-use_yp = st.toggle("영풍문고", value=False)
-enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
-st.markdown('</div>', unsafe_allow_html=True)
-
+    st.subheader("1) 서점 선택")
+    # 기본 OFF로 변경
+    use_kyobo = st.toggle("교보문고", value=False)
+    use_yes24 = st.toggle("YES24", value=False)
+    use_aladin = st.toggle("알라딘", value=False)
+    use_yp = st.toggle("영풍문고", value=False)
+    enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
 with colB:
-st.markdown('<div class="vc-card">', unsafe_allow_html=True)
-st.markdown('<div class="vc-card-title">2) URL 입력</div>', unsafe_allow_html=True)
-st.text_area(
-    "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
-    key=URLS_KEY,
-    height=160,
-    placeholder="예)
-https://www.yes24.com/Product/Goods/168226997
-https://product.kyobobook.co.kr/detail/S000218972540
-https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918
-https://www.ypbooks.co.kr/books/202512185684862499?idKey=33",
-    on_change=_normalize_urls_in_textarea,
-)
-st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
-st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-run = st.button("🚀 도서 정보 가져오기", type="primary")
-st.markdown('</div>', unsafe_allow_html=True)
-
+    st.subheader("2) URL 입력")
+    st.text_area(
+        "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
+        key=URLS_KEY,
+        height=140,
+        placeholder="예)\nhttps://www.yes24.com/Product/Goods/168226997\nhttps://product.kyobobook.co.kr/detail/S000218972540\nhttps://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918\nhttps://www.ypbooks.co.kr/books/202512185684862499?idKey=33",
+        on_change=_normalize_urls_in_textarea,
+    )
+    st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
+    run = st.button("🚀 도서 정보 가져오기", type="primary")
 
 # ---------------------------
 # Actions
@@ -202,7 +167,6 @@ if run:
         st.session_state.rows.extend(new_rows)
         st.success(f"{len(new_rows)}개 URL을 처리했어요. 아래 테이블에 누적되었습니다.")
 
-st.markdown('<div class="vc-card">', unsafe_allow_html=True)
 # ---------------------------
 # Section 3: Header + Buttons (Reset + Download) in same row, close to title
 # ---------------------------
@@ -210,7 +174,7 @@ st.markdown('<div class="vc-card">', unsafe_allow_html=True)
 h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
 
 with h_col1:
-    st.markdown('<div class="vc-card-title">3) 누적 결과</div>', unsafe_allow_html=True)
+    st.markdown("### 3) 누적 결과")
 
 with h_col2:
     st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
@@ -261,5 +225,3 @@ if st.session_state.rows:
     st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
 else:
     st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")
-
-st.markdown('</div>', unsafe_allow_html=True)
