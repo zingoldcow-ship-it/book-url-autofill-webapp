@@ -7,6 +7,59 @@ from utils.excel import to_xlsx_bytes
 
 st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
+
+
+st.markdown(
+    """
+<style>
+/* ---------- Card UI (safe, no :has) ---------- */
+
+/* Make horizontal rows vertically centered (fix header + buttons alignment) */
+div[data-testid="stHorizontalBlock"]{
+    align-items: center;
+}
+
+/* Border wrapper: turn off Streamlit's own border/padding so our inner card controls visuals */
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"] > div{
+    padding: 0 !important;
+}
+
+/* Inner card base */
+.card-base{
+    border-radius: 18px;
+    padding: 18px 20px 16px 20px;
+    border: 1px solid rgba(0,0,0,0.07);
+    box-shadow: 0 1px 8px rgba(0,0,0,0.05);
+}
+
+/* Card tones */
+.card-blue{ background: #F2F6FF; }
+.card-pink{ background: #FFF2F5; }
+.card-yellow{ background: #FFF9E8; }
+
+/* Card title */
+.card-title{
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 0 0 10px 0;
+    white-space: nowrap;
+    word-break: keep-all;
+}
+
+/* Prevent odd Korean word breaks globally */
+h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
+
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 # --- Global CSS: button heights + tighter header row ---
 st.markdown(
     """
@@ -153,7 +206,7 @@ colA, colB = st.columns([1, 2], gap="large")
 
 with colA:
     with st.container(border=True):
-        st.markdown('<div class="card-marker card-blue-marker"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-base card-blue">', unsafe_allow_html=True)
         st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
 
         # 기본 OFF
@@ -165,7 +218,7 @@ with colA:
 
 with colB:
     with st.container(border=True):
-        st.markdown('<div class="card-marker card-pink-marker"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-base card-pink">', unsafe_allow_html=True)
         st.markdown('<div class="card-title">🔗 URL 입력</div>', unsafe_allow_html=True)
 
         st.text_area(
@@ -178,6 +231,8 @@ with colB:
         st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
         run = st.button("🚀 도서 정보 가져오기", type="primary")
 
+
+        st.markdown('</div>', unsafe_allow_html=True)
 # ---------------------------
 # Actions
 # ---------------------------
@@ -209,7 +264,7 @@ if run:
 # Section 3: 누적 결과 (Card)
 # ---------------------------
 with st.container(border=True):
-    st.markdown('<div class="card-marker card-yellow-marker"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card-base card-yellow">', unsafe_allow_html=True)
     # ---------------------------
     # Section 3: Header + Buttons (Reset + Download) in same row, close to title
     # ---------------------------
@@ -268,3 +323,4 @@ with st.container(border=True):
         st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
     else:
         st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")
+    st.markdown('</div>', unsafe_allow_html=True)
