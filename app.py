@@ -2,7 +2,6 @@ import re
 import pandas as pd
 import streamlit as st
 
-import streamlit.components.v1 as components
 from parsers import parse_any
 from utils.excel import to_xlsx_bytes
 
@@ -13,37 +12,25 @@ st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 st.markdown(
     """
 <style>
-/* --- Card background that actually fills the whole Streamlit bordered container --- */
+/* ---------- Card UI: color by order (3 bordered containers) ---------- */
 div[data-testid="stVerticalBlockBorderWrapper"]{
-    position: relative !important;
-    overflow: hidden !important;
     border-radius: 18px !important;
     border: 1px solid rgba(0,0,0,0.07) !important;
     box-shadow: 0 1px 8px rgba(0,0,0,0.05) !important;
-    background: transparent !important;
+    overflow: hidden !important;
 }
+
+/* Keep default inner spacing but make it consistent */
 div[data-testid="stVerticalBlockBorderWrapper"] > div{
-    position: relative !important;
     padding: 18px 20px 16px 20px !important;
-    background: transparent !important;
 }
 
-/* The background layer inserted as the first markdown in each card */
-.card-bg{
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-}
-.card-bg.blue{ background:#F2F6FF; }
-.card-bg.pink{ background:#FFF2F5; }
-.card-bg.yellow{ background:#FFF9E8; }
+/* Apply tones to the first 3 bordered containers on the page */
+div[data-testid="stVerticalBlockBorderWrapper"]:nth-of-type(1){ background: #F2F6FF !important; } /* 서점 선택 */
+div[data-testid="stVerticalBlockBorderWrapper"]:nth-of-type(2){ background: #FFF2F5 !important; } /* URL 입력 */
+div[data-testid="stVerticalBlockBorderWrapper"]:nth-of-type(3){ background: #FFF9E8 !important; } /* 누적 결과 */
 
-/* Everything after the bg inside the same parent should appear above it */
-.card-bg ~ *{
-    position: relative;
-    z-index: 1;
-}
-
+/* Title */
 .card-title{
     font-size: 1.55rem;
     font-weight: 800;
@@ -54,10 +41,10 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div{
 }
 h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
 
-/* Align title + buttons nicely in horizontal blocks */
+/* Align horizontal blocks (누적결과 제목 + 버튼) */
 div[data-testid="stHorizontalBlock"]{ align-items: center; }
 
-/* Button sizing consistency */
+/* Buttons */
 div[data-testid="stButton"] button,
 div[data-testid="stDownloadButton"] button{
     height: 44px;
@@ -67,59 +54,6 @@ div[data-testid="stDownloadButton"] button{
 </style>
 """,
     unsafe_allow_html=True,
-)
-
-
-
-components.html(
-    """
-<script>
-(function() {
-  function applyCardColors() {
-    const markers = document.querySelectorAll('.card-marker[data-card]');
-    if (!markers || markers.length === 0) return false;
-
-    const colors = {
-      blue: '#F2F6FF',
-      pink: '#FFF2F5',
-      yellow: '#FFF9E8'
-    };
-
-    markers.forEach(m => {
-      const key = m.getAttribute('data-card');
-      const bg = colors[key] || 'transparent';
-      // climb to the Streamlit bordered container wrapper
-      let el = m;
-      while (el && el !== document.body) {
-        if (el.getAttribute && el.getAttribute('data-testid') === 'stVerticalBlockBorderWrapper') {
-          el.style.background = bg;
-          el.style.borderRadius = '18px';
-          el.style.border = '1px solid rgba(0,0,0,0.07)';
-          el.style.boxShadow = '0 1px 8px rgba(0,0,0,0.05)';
-          el.style.overflow = 'hidden';
-          break;
-        }
-        el = el.parentElement;
-      }
-    });
-    return true;
-  }
-
-  // Try immediately and also after Streamlit rerenders
-  let tries = 0;
-  const timer = setInterval(() => {
-    tries += 1;
-    const ok = applyCardColors();
-    if (ok || tries > 40) clearInterval(timer);
-  }, 250);
-
-  // Also observe DOM changes (Streamlit reruns)
-  const obs = new MutationObserver(() => applyCardColors());
-  obs.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
-""",
-    height=0,
 )
 
 # --- Global CSS: button heights + tighter header row ---
@@ -237,9 +171,6 @@ colA, colB = st.columns([1, 2], gap="large")
 
 with colA:
     with st.container(border=True):
-        st.markdown('<div class="card-marker" data-card="yellow"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="card-marker" data-card="pink"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="card-marker" data-card="blue"></div>', unsafe_allow_html=True)
 
         st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
 
