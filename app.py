@@ -7,6 +7,50 @@ from utils.excel import to_xlsx_bytes
 
 st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
+
+
+st.markdown("""
+<style>
+/* Page background subtle */
+.block-container { padding-top: 1.2rem; }
+
+/* Card look */
+.card-base{
+  border-radius: 18px;
+  padding: 18px 20px 16px 20px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+}
+.card-blue{ background:#F2F6FF; }
+.card-pink{ background:#FFF2F5; }
+.card-yellow{ background:#FFF9E8; }
+
+.card-title{
+  font-size: 1.55rem;
+  font-weight: 800;
+  margin: 0 0 10px 0;
+  line-height: 1.2;
+  word-break: keep-all;
+  white-space: nowrap;
+}
+.card-sub{
+  color: rgba(0,0,0,0.62);
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
+
+/* Keep headers from splitting like '누적결/과' */
+h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
+
+/* Make bordered containers look like cards by hiding default border */
+[data-testid="stVerticalBlockBorderWrapper"]{
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # --- Global CSS: button heights + tighter header row ---
 st.markdown(
     """
@@ -121,7 +165,9 @@ SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YP
 colA, colB = st.columns([1, 2])
 
 with colA:
-    st.subheader("🛒 서점 선택")
+    st.subheader(with st.container(border=True):
+    st.markdown('<div class="card-base card-blue">', unsafe_allow_html=True)
+🛒 서점 선택)
     # 기본 OFF로 변경
     use_kyobo = st.toggle("교보문고", value=False)
     use_yes24 = st.toggle("YES24", value=False)
@@ -130,7 +176,10 @@ with colA:
     enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
 with colB:
-    st.subheader("🔗 URL 입력")
+    st.subheader(    st.markdown('</div>', unsafe_allow_html=True)
+with st.container(border=True):
+    st.markdown('<div class="card-base card-pink">', unsafe_allow_html=True)
+🔗 URL 입력)
     st.text_area(
         "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
         key=URLS_KEY,
@@ -174,7 +223,10 @@ if run:
 h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
 
 with h_col1:
-    st.markdown("### 📊 누적 결과")
+    st.markdown("###     st.markdown('</div>', unsafe_allow_html=True)
+with st.container(border=True):
+    st.markdown('<div class="card-base card-yellow">', unsafe_allow_html=True)
+📊 누적 결과")
 
 with h_col2:
     st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
@@ -225,3 +277,4 @@ if st.session_state.rows:
     st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
 else:
     st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")
+    st.markdown('</div>', unsafe_allow_html=True)
