@@ -12,14 +12,10 @@ st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 st.markdown(
     """
 <style>
-/* ---------- Card UI (absolute bg) ---------- */
+/* Keep horizontal items aligned (fix title + buttons baseline) */
+div[data-testid="stHorizontalBlock"]{ align-items: center; }
 
-/* Make horizontal rows vertically centered (fix header + buttons alignment) */
-div[data-testid="stHorizontalBlock"]{
-    align-items: center;
-}
-
-/* Border wrapper: turn off Streamlit's own border/padding so our inner card controls visuals */
+/* Remove Streamlit border wrapper visuals so we can draw our own single card */
 div[data-testid="stVerticalBlockBorderWrapper"]{
     border: none !important;
     background: transparent !important;
@@ -27,62 +23,20 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
 }
 div[data-testid="stVerticalBlockBorderWrapper"] > div{
     padding: 0 !important;
+    background: transparent !important;
 }
 
-/* Inner card base */
+/* Card */
 .card-base{
     border-radius: 18px;
     padding: 18px 20px 16px 20px;
     border: 1px solid rgba(0,0,0,0.07);
     box-shadow: 0 1px 8px rgba(0,0,0,0.05);
 }
-
-/* Card tones */
 .card-blue{ background: #F2F6FF; }
 .card-pink{ background: #FFF2F5; }
 .card-yellow{ background: #FFF9E8; }
 
-/* Card title */
-.card-title{
-    font-size: 1.55rem;
-    font-weight: 800;
-    line-height: 1.15;
-    margin: 0 0 10px 0;
-    white-space: nowrap;
-    word-break: keep-all;
-}
-
-/* Prevent odd Korean word breaks globally */
-h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
-
-
-
-/* ---------- Card UI (absolute bg) ---------- */
-div[data-testid="stVerticalBlockBorderWrapper"]{
-    position: relative !important;
-    overflow: hidden !important;
-    border-radius: 18px !important;
-    border: 1px solid rgba(0,0,0,0.07) !important;
-    box-shadow: 0 1px 8px rgba(0,0,0,0.05) !important;
-    background: transparent !important;
-}
-div[data-testid="stVerticalBlockBorderWrapper"] > div{
-    padding: 18px 20px 16px 20px !important;
-    position: relative !important;
-    z-index: 1 !important;
-}
-
-/* Background layer that fills the whole card */
-.card-bg{
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    border-radius: 18px;
-}
-.card-bg.blue{ background: #F2F6FF; }
-.card-bg.pink{ background: #FFF2F5; }
-.card-bg.yellow{ background: #FFF9E8; }
-
 .card-title{
     font-size: 1.55rem;
     font-weight: 800;
@@ -93,8 +47,13 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div{
 }
 h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
 
-/* Align header row items */
-div[data-testid="stHorizontalBlock"]{ align-items: center; }
+/* Buttons consistent */
+div[data-testid="stButton"] button,
+div[data-testid="stDownloadButton"] button{
+    height: 44px;
+    padding: 0 16px;
+    font-weight: 600;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -246,7 +205,7 @@ colA, colB = st.columns([1, 2], gap="large")
 
 with colA:
     with st.container(border=True):
-        st.markdown('<div class="card-bg blue"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-base card-blue">', unsafe_allow_html=True)
         st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
 
         # 기본 OFF
@@ -258,7 +217,7 @@ with colA:
 
 with colB:
     with st.container(border=True):
-        st.markdown('<div class="card-bg pink"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-base card-pink">', unsafe_allow_html=True)
         st.markdown('<div class="card-title">🔗 URL 입력</div>', unsafe_allow_html=True)
 
         st.text_area(
@@ -270,6 +229,8 @@ with colB:
         )
         st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
         run = st.button("🚀 도서 정보 가져오기", type="primary")
+
+        st.markdown('</div>', unsafe_allow_html=True)
 # ---------------------------
 # Actions
 # ---------------------------
@@ -301,7 +262,7 @@ if run:
 # Section 3: 누적 결과 (Card)
 # ---------------------------
 with st.container(border=True):
-    st.markdown('<div class="card-bg yellow"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card-base card-yellow">', unsafe_allow_html=True)
     # ---------------------------
     # Section 3: Header + Buttons (Reset + Download) in same row, close to title
     # ---------------------------
@@ -360,3 +321,4 @@ with st.container(border=True):
         st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
     else:
         st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")
+    st.markdown('</div>', unsafe_allow_html=True)
