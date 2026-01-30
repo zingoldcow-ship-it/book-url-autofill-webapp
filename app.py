@@ -9,7 +9,7 @@ st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
 
 
-st.markdown("""
+st.markdown("")
 <style>
 /* Page background subtle */
 .block-container { padding-top: 1.2rem; }
@@ -176,7 +176,7 @@ st.markdown("🛒 서점 선택)", unsafe_allow_html=False)
     enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
 with colB:
-    st.subheader(    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 with st.container(border=True):
     st.markdown('<div class="card-base card-pink">', unsafe_allow_html=True)
 st.markdown("🔗 URL 입력)", unsafe_allow_html=False)
@@ -223,7 +223,7 @@ if run:
 h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
 
 with h_col1:
-    st.markdown("###     st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("")
 with st.container(border=True):
     st.markdown('<div class="card-base card-yellow">', unsafe_allow_html=True)
 st.markdown("📊 누적 결과")", unsafe_allow_html=False)
@@ -277,4 +277,4 @@ if st.session_state.rows:
     st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
 else:
     st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")
-    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
