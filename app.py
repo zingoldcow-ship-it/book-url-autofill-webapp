@@ -12,7 +12,7 @@ st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 st.markdown(
     """
 <style>
-/* ---------- Card UI: color by order (3 bordered containers) ---------- */
+/* ---------- Card UI: colored bordered containers ---------- */
 div[data-testid="stVerticalBlockBorderWrapper"]{
     border-radius: 18px !important;
     border: 1px solid rgba(0,0,0,0.07) !important;
@@ -25,10 +25,13 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div{
     padding: 18px 20px 16px 20px !important;
 }
 
-/* Apply tones to the first 3 bordered containers on the page */
-div[data-testid="stVerticalBlockBorderWrapper"]:nth-of-type(1){ background: #F2F6FF !important; } /* 서점 선택 */
-div[data-testid="stVerticalBlockBorderWrapper"]:nth-of-type(2){ background: #FFF2F5 !important; } /* URL 입력 */
-div[data-testid="stVerticalBlockBorderWrapper"]:nth-of-type(3){ background: #FFF9E8 !important; } /* 누적 결과 */
+/* Marker (used for reliable targeting) */
+.card-marker{ display:none; }
+
+/* Apply tones by marker (robust even if other bordered blocks exist) */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-store){ background: #F2F6FF !important; }  /* 서점 카드: 연한 파랑 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-url){   background: #FFF2F5 !important; }  /* URL 카드: 연한 핑크 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-result){background: #FFF9E8 !important; }  /* 결과 카드: 연한 노랑 */
 
 /* Title */
 .card-title{
@@ -172,6 +175,8 @@ colA, colB = st.columns([1, 2], gap="large")
 with colA:
     with st.container(border=True):
 
+        st.markdown('<div class="card-marker card-store"></div>', unsafe_allow_html=True)
+
         st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
 
         # 기본 OFF
@@ -183,6 +188,8 @@ with colA:
 
 with colB:
     with st.container(border=True):
+
+        st.markdown('<div class="card-marker card-url"></div>', unsafe_allow_html=True)
 
         st.markdown('<div class="card-title">🔗 URL 입력</div>', unsafe_allow_html=True)
 
@@ -232,6 +239,8 @@ with st.container(border=True):
     h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
 
     with h_col1:
+        st.markdown('<div class="card-marker card-result"></div>', unsafe_allow_html=True)
+
         st.markdown('<div class="card-title">📊 누적 결과</div>', unsafe_allow_html=True)
 
     with h_col2:
