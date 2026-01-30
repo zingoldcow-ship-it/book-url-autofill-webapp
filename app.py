@@ -12,51 +12,53 @@ st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 st.markdown(
     """
 <style>
-/* ---------- Card UI (no nested cards, no :has) ---------- */
-div[data-testid="stVerticalBlockBorderWrapper"]{
-    border-radius: 18px !important;
-    border: 1px solid rgba(0,0,0,0.07) !important;
-    box-shadow: 0 1px 8px rgba(0,0,0,0.05) !important;
-    overflow: hidden !important;
-}
+/* Keep horizontal items aligned (fix title + buttons baseline) */
+div[data-testid="stHorizontalBlock"]{ align-items: center; }
 
-/* Consistent inner spacing */
+/* Remove Streamlit border wrapper visuals so we can draw our own single card */
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
 div[data-testid="stVerticalBlockBorderWrapper"] > div{
-    padding: 18px 20px 16px 20px !important;
+    padding: 0 !important;
     background: transparent !important;
 }
 
-/* --- Card background colors --- */
-/* 1) Top row (2 columns): left=서점(파랑), right=URL(핑크) */
-section.main .block-container div[data-testid="stHorizontalBlock"]:first-of-type
-  > div[data-testid="stColumn"]:nth-child(1)
-  div[data-testid="stVerticalBlockBorderWrapper"]{
-    background: #F2F6FF !important;
+/* Card */
+.card-base{
+    border-radius: 18px;
+    padding: 18px 20px 16px 20px;
+    border: 1px solid rgba(0,0,0,0.07);
+    box-shadow: 0 1px 8px rgba(0,0,0,0.05);
 }
+.card-blue{ background: #F2F6FF; }
+.card-pink{ background: #FFF2F5; }
+.card-yellow{ background: #FFF9E8; }
 
-section.main .block-container div[data-testid="stHorizontalBlock"]:first-of-type
-  > div[data-testid="stColumn"]:nth-child(2)
-  div[data-testid="stVerticalBlockBorderWrapper"]{
-    background: #FFF2F5 !important;
-}
-
-/* 2) Bottom (results) card: last bordered wrapper on the page */
-section.main .block-container div[data-testid="stVerticalBlockBorderWrapper"]:last-of-type{
-    background: #FFF9E8 !important;
-}
-
-/* Titles */
 .card-title{
     font-size: 1.55rem;
     font-weight: 800;
     line-height: 1.15;
-    margin: 0;          /* important for header alignment */
+    margin: 0 0 10px 0;
     white-space: nowrap;
+    word-break: keep-all;
+}
+h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
+
+/* Buttons consistent */
+div[data-testid="stButton"] button,
+div[data-testid="stDownloadButton"] button{
+    height: 44px;
+    padding: 0 16px;
+    font-weight: 600;
 }
 </style>
-    """,
+""",
     unsafe_allow_html=True,
 )
+
 # --- Global CSS: button heights + tighter header row ---
 st.markdown(
     """
@@ -68,14 +70,45 @@ div[data-testid="stDownloadButton"] button {
     padding: 0 16px;
     font-weight: 600;
 }
+
 /* Slightly reduce default gap above/below elements */
 .block-container { padding-top: 2rem; }
+
+/* --- Card system (uses :has() to color each bordered container) --- */
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    border-radius: 18px !important;
+    border: 1px solid rgba(0,0,0,0.07) !important;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.05) !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"] > div{
+    padding: 18px 20px 16px 20px !important;
+}
+
+/* card background tones */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-blue-marker) { background: #F2F6FF !important; }
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-pink-marker) { background: #FFF2F5 !important; }
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-yellow-marker){ background: #FFF9E8 !important; }
+
+/* Card title */
+.card-title{
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 0 0 10px 0;
+    white-space: nowrap;
+    word-break: keep-all;
+}
+
+/* Prevent odd Korean word breaks in headings */
+h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
+
+/* Remove top extra spacing inside containers created by markdown */
+.card-marker{ height:0px; margin:0; padding:0; }
 </style>
 """,
     unsafe_allow_html=True,
 )
-
-st.title("📚 도서 정보 자동 채움 웹앱")
+st.title("📚 도서 정보 자동 채움")
 st.caption(
     "URL을 입력하고 도서 정보 가져오기 버튼을 클릭하면 ISBN/도서명/저자/출판사/가격이 자동으로 채워집니다. "
     "결과는 누적해 엑셀로 다운로드할 수 있습니다."
@@ -170,8 +203,9 @@ SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YP
 # ---------------------------
 colA, colB = st.columns([1, 2], gap="large")
 
-with colA:    with st.container(border=True):
-
+with colA:
+    with st.container(border=True):
+        st.markdown('<div class="card-base card-blue">', unsafe_allow_html=True)
         st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
 
         # 기본 OFF
@@ -181,8 +215,9 @@ with colA:    with st.container(border=True):
         use_yp = st.toggle("영풍문고", value=False)
         enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
-with colB:    with st.container(border=True):
-
+with colB:
+    with st.container(border=True):
+        st.markdown('<div class="card-base card-pink">', unsafe_allow_html=True)
         st.markdown('<div class="card-title">🔗 URL 입력</div>', unsafe_allow_html=True)
 
         st.text_area(
@@ -195,6 +230,7 @@ with colB:    with st.container(border=True):
         st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
         run = st.button("🚀 도서 정보 가져오기", type="primary")
 
+        st.markdown('</div>', unsafe_allow_html=True)
 # ---------------------------
 # Actions
 # ---------------------------
@@ -221,21 +257,29 @@ if run:
         st.session_state.rows.extend(new_rows)
         st.success(f"{len(new_rows)}개 URL을 처리했어요. 아래 테이블에 누적되었습니다.")
 
-# ---------------------------
-# Section 3: Header + Buttons (Reset + Download) in same row, close to title
-# ---------------------------
-# 타이틀과 버튼 간격을 최대한 붙이기 위해, 첫 컬럼 폭을 줄이고 버튼 컬럼을 바로 옆에 배치합니다.with st.container(border=True):
 
-    h_col1, h_col2, h_col3 = st.columns([2.6, 2.2, 3.2], vertical_alignment="center")
-with h_col1:
+# ---------------------------
+# Section 3: 누적 결과 (Card)
+# ---------------------------
+with st.container(border=True):
+    st.markdown('<div class="card-base card-yellow">', unsafe_allow_html=True)
+    # ---------------------------
+    # Section 3: Header + Buttons (Reset + Download) in same row, close to title
+    # ---------------------------
+    # 타이틀과 버튼 간격을 최대한 붙이기 위해, 첫 컬럼 폭을 줄이고 버튼 컬럼을 바로 옆에 배치합니다.
+    h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
+
+    with h_col1:
         st.markdown('<div class="card-title">📊 누적 결과</div>', unsafe_allow_html=True)
 
     with h_col2:
-                clear = st.button("🧹 누적 초기화", use_container_width=True)
+        st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
+        clear = st.button("🧹 누적 초기화", use_container_width=True)
 
     with h_col3:
         if st.session_state.rows:
-                        df_raw_for_excel = pd.DataFrame(st.session_state.rows)
+            st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
+            df_raw_for_excel = pd.DataFrame(st.session_state.rows)
             xbytes = to_xlsx_bytes(df_raw_for_excel)
             st.download_button(
                 "📥 결과 엑셀(.xlsx) 다운로드",
@@ -277,3 +321,4 @@ with h_col1:
         st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
     else:
         st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")
+    st.markdown('</div>', unsafe_allow_html=True)
