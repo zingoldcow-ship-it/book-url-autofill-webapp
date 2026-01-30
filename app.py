@@ -7,25 +7,38 @@ from utils.excel import to_xlsx_bytes
 
 st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
+# ---------------------------
+# Style (UX tweaks)
+# ---------------------------
 st.markdown(
     """
 <style>
-/* 버튼 크기/높이 통일: '누적 초기화' & '엑셀 다운로드'를 제목 높이와 맞춤 */
-div[data-testid="stButton"] > button,
-div[data-testid="stDownloadButton"] > button {
-  height: 44px;
-  font-size: 1rem;
-  padding: 0.35rem 0.9rem;
+/* tighten section header row spacing */
+.section-row { display:flex; align-items:center; gap:12px; margin: 6px 0 10px 0; }
+.section-title { font-size: 1.75rem; font-weight: 700; margin: 0; padding: 0; line-height: 1.2; }
+
+/* make action buttons visually consistent & align with title */
+div.stButton > button, div.stDownloadButton > button{
+  height: 44px !important;
+  padding: 0 16px !important;
+  font-size: 0.95rem !important;
+  border-radius: 10px !important;
 }
-/* 헤더(3) 제목과 버튼 세로 정렬 보정 */
-.v-align-44 { line-height: 44px; margin: 0; padding: 0; }
+
+/* reduce extra vertical padding around buttons in columns */
+div[data-testid="column"] > div { padding-top: 0.2rem; }
+
+/* make tip text slightly muted */
+.tip { color: rgba(49, 51, 63, 0.6); font-size: 0.85rem; }
 </style>
 """,
     unsafe_allow_html=True,
 )
 
 st.title("📚 도서 정보 자동 채움")
-st.caption("URL을 입력하고 도서 정보 가져오기 버튼을 클릭하면 ISBN/도서명/저자/출판사/가격이 자동으로 채워집니다. 결과는 누적해 엑셀로 다운로드할 수 있습니다.")
+st.caption(
+    "URL을 입력하고 도서 정보 가져오기 버튼을 클릭하면 ISBN/도서명/저자/출판사/가격이 자동으로 채워집니다. 결과는 누적해 엑셀로 다운로드할 수 있습니다."
+)
 
 with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
     st.markdown(
@@ -33,9 +46,9 @@ with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
 - 지원: **교보문고 / YES24 / 알라딘 / 영풍문고**
 - 사용:
   1) 사용할 서점을 토글로 선택  
-  2) 상품 URL을 한 줄에 하나씩 입력(여러 줄 붙여넣기 가능)  
+  2) 상품 URL을 입력(여러 URL 붙여넣기 가능)  
   3) **도서 정보 가져오기** → 테이블 누적  
-  4) **엑셀 다운로드**  
+  4) (누적 결과에서) **엑셀 다운로드**
 - 주의:
   - 일부 서점은 **동적 렌더링/봇 차단**으로 일반 요청 파싱이 실패할 수 있습니다.
   - 이 앱은 그런 경우를 대비해 **Playwright(헤드리스 브라우저) 백업 파싱**을 자동으로 사용합니다.
@@ -45,66 +58,28 @@ with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
 if "rows" not in st.session_state:
     st.session_state.rows = []
 
-if "urls_input" not in st.session_state:
-    st.session_state.urls_input = ""
-
-colA, colB = st.columns([1, 2])
-
-with colA:
-    st.subheader("1) 서점 선택")
-    use_kyobo = st.toggle("교보문고", value=False)
-    use_yes24 = st.toggle("YES24", value=False)
-    use_aladin = st.toggle("알라딘", value=False)
-    use_yp = st.toggle("영풍문고", value=False)
-    enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
-
-with colB:
-    st.subheader("2) URL 입력")
-    urls_text = st.text_area(
-        "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
-        key="urls_input",
-        height=140,
-        placeholder="""예)
-https://www.yes24.com/Product/Goods/168226997
-https://product.kyobobook.co.kr/detail/S000218972540
-https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918
-https://www.ypbooks.co.kr/books/202512185684862499?idKey=33""",
-        on_change=_normalize_urls_input,
-    )
-
-    st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
-    run = st.button("🚀 도서 정보 가져오기", type="primary")
-
-
-def _normalize_urls_input():
-    text = st.session_state.get("urls_input", "") or ""
-    # 붙여넣기 시 공백/탭으로 들어온 URL도 자동으로 한 줄에 하나씩 정리 + 마지막에 개행 추가
-    candidates = re.findall(r"https?://[^\s]+", text)
-    cleaned = []
-    for u in candidates:
-        u = u.strip().strip('"').strip("'")
-        u = u.rstrip(").,;")
-        cleaned.append(u)
-    out, seen = [], set()
-    for u in cleaned:
-        if u and u not in seen:
-            seen.add(u)
-            out.append(u)
-    new_text = "\n".join(out)
-    if new_text and not new_text.endswith("\n"):
-        new_text += "\n"
-    st.session_state["urls_input"] = new_text
-
+# ---------------------------
+# Helpers
+# ---------------------------
+URL_RE = re.compile(r"https?://[^\s<>\]\)\"']+")
 
 def normalize_urls(text: str) -> list[str]:
+    """Return de-duplicated URLs (order preserved)."""
     urls = []
-    for line in (text or "").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if not re.match(r"^https?://", line):
-            continue
-        urls.append(line)
+    for m in URL_RE.finditer(text or ""):
+        u = m.group(0).strip().rstrip(".,;")
+        if u:
+            urls.append(u)
+    # Also respect line-based input if user typed without scheme filtering
+    if not urls:
+        for line in (text or "").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if not re.match(r"^https?://", line):
+                continue
+            urls.append(line)
+
     seen, out = set(), []
     for u in urls:
         if u in seen:
@@ -112,6 +87,19 @@ def normalize_urls(text: str) -> list[str]:
         seen.add(u)
         out.append(u)
     return out
+
+def normalize_urls_input():
+    """
+    Normalize textarea content so that when user pastes multiple URLs,
+    it becomes 'one url per line' and ends with a newline, so they can
+    continue pasting without manually pressing Enter.
+    """
+    raw = st.session_state.get("urls_text", "") or ""
+    urls = normalize_urls(raw)
+    if urls:
+        normalized = "\n".join(urls) + "\n"
+        if normalized != raw:
+            st.session_state["urls_text"] = normalized
 
 def fmt_won(v):
     if v is None:
@@ -135,8 +123,38 @@ COLUMN_KO = {
 }
 SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YPBOOKS": "영풍문고"}
 
+# ---------------------------
+# Layout
+# ---------------------------
+colA, colB = st.columns([1, 2], vertical_alignment="top")
+
+with colA:
+    st.subheader("1) 서점 선택")
+    # Default OFF (user request)
+    use_kyobo = st.toggle("교보문고", value=False)
+    use_yes24 = st.toggle("YES24", value=False)
+    use_aladin = st.toggle("알라딘", value=False)
+    use_yp = st.toggle("영풍문고", value=False)
+    enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
+
+with colB:
+    st.subheader("2) URL 입력")
+    st.text_area(
+        "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
+        key="urls_text",
+        height=140,
+        placeholder="예)\nhttps://www.yes24.com/Product/Goods/168226997\nhttps://product.kyobobook.co.kr/detail/S000218972540\nhttps://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918\nhttps://www.ypbooks.co.kr/books/202512185684862499?idKey=33",
+        on_change=normalize_urls_input,
+    )
+    st.markdown('<div class="tip">TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)</div>', unsafe_allow_html=True)
+
+    run = st.button("🚀 도서 정보 가져오기", type="primary")
+
+# ---------------------------
+# Actions
+# ---------------------------
 if run:
-    urls = normalize_urls(urls_text)
+    urls = normalize_urls(st.session_state.get("urls_text", ""))
     if not urls:
         st.warning("유효한 URL이 없어요. http(s)로 시작하는 상품 URL을 입력해 주세요.")
     else:
@@ -158,39 +176,44 @@ if run:
         st.session_state.rows.extend(new_rows)
         st.success(f"{len(new_rows)}개 URL을 처리했어요. 아래 테이블에 누적되었습니다.")
 
-# 3) 누적 결과 (제목 옆에 '누적 초기화' + 처리 완료 시 '엑셀 다운로드' 버튼 표시)
-h1, h2, h3 = st.columns([1, 0.18, 0.32], gap="small")
-with h1:
-    st.markdown('<h3 class="v-align-44">3) 누적 결과</h3>', unsafe_allow_html=True)
+# ---------------------------
+# Results header row (title + buttons)
+# ---------------------------
+header_cols = st.columns([2.2, 0.9, 1.1, 6.0], vertical_alignment="center")
+with header_cols[0]:
+    st.markdown('<div class="section-row"><div class="section-title">3) 누적 결과</div></div>', unsafe_allow_html=True)
 
-with h2:
-    clear2 = st.button("🧹 누적 초기화", key="clear_accum")
+with header_cols[1]:
+    clear = st.button("🧹 누적 초기화")
 
-# 다운로드 버튼은 누적 데이터가 있을 때만 노출 (4) 섹션 문구는 제거)
-with h3:
-    download_clicked = False  # placeholder
-
-if clear2:
-    st.session_state.rows = []
-    st.toast("누적 데이터를 초기화했어요.", icon="🧹")
-    st.rerun()
-
+xbytes = None
+df_raw = None
 if st.session_state.rows:
     df_raw = pd.DataFrame(st.session_state.rows)
-
-    # 엑셀 다운로드 버튼 (누적 초기화 옆)
     xbytes = to_xlsx_bytes(df_raw)
-    with h3:
+
+with header_cols[2]:
+    if xbytes is not None:
         st.download_button(
             "⬇️ 결과 엑셀(.xlsx) 다운로드",
             data=xbytes,
             file_name="도서_자동완성_결과.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="secondary",
-            key="download_xlsx",
         )
 
+# Spacer column header_cols[3] is just for breathing room / alignment
+
+if clear:
+    st.session_state.rows = []
+    st.toast("누적 데이터를 초기화했어요.", icon="🧹")
+
+# ---------------------------
+# Results table
+# ---------------------------
+if st.session_state.rows:
     df_view = df_raw.copy()
+
     if "site" in df_view.columns:
         df_view["site"] = df_view["site"].map(SITE_KO).fillna(df_view["site"])
     if "status" in df_view.columns:
