@@ -12,37 +12,57 @@ st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 st.markdown(
     """
 <style>
-.card-base{
-  border-radius: 18px;
-  padding: 18px 20px 16px 20px;
-  border: 1px solid rgba(0,0,0,0.07);
-  box-shadow: 0 1px 8px rgba(0,0,0,0.05);
-  margin-bottom: 16px;
+/* --- Card background that actually fills the whole Streamlit bordered container --- */
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    position: relative !important;
+    overflow: hidden !important;
+    border-radius: 18px !important;
+    border: 1px solid rgba(0,0,0,0.07) !important;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.05) !important;
+    background: transparent !important;
 }
-.card-blue{ background:#F2F6FF; }
-.card-pink{ background:#FFF2F5; }
-.card-yellow{ background:#FFF9E8; }
+div[data-testid="stVerticalBlockBorderWrapper"] > div{
+    position: relative !important;
+    padding: 18px 20px 16px 20px !important;
+    background: transparent !important;
+}
+
+/* The background layer inserted as the first markdown in each card */
+.card-bg{
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+.card-bg.blue{ background:#F2F6FF; }
+.card-bg.pink{ background:#FFF2F5; }
+.card-bg.yellow{ background:#FFF9E8; }
+
+/* Everything after the bg inside the same parent should appear above it */
+.card-bg ~ *{
+    position: relative;
+    z-index: 1;
+}
 
 .card-title{
-  font-size: 1.55rem;
-  font-weight: 800;
-  line-height: 1.15;
-  margin: 0 0 10px 0;
-  white-space: nowrap;
-  word-break: keep-all;
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 0 0 10px 0;
+    white-space: nowrap;
+    word-break: keep-all;
 }
 h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
 
-/* Buttons consistent */
+/* Align title + buttons nicely in horizontal blocks */
+div[data-testid="stHorizontalBlock"]{ align-items: center; }
+
+/* Button sizing consistency */
 div[data-testid="stButton"] button,
 div[data-testid="stDownloadButton"] button{
-  height: 44px;
-  padding: 0 16px;
-  font-weight: 600;
+    height: 44px;
+    padding: 0 16px;
+    font-weight: 600;
 }
-
-/* Align items in header rows that use columns */
-div[data-testid="stHorizontalBlock"]{ align-items:center; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -162,8 +182,8 @@ SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YP
 colA, colB = st.columns([1, 2], gap="large")
 
 with colA:
-    with st.container():
-        st.markdown('<div class="card-base card-blue">', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown('<div class="card-bg blue"></div>', unsafe_allow_html=True)
         st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
 
         # 기본 OFF
@@ -173,11 +193,9 @@ with colA:
         use_yp = st.toggle("영풍문고", value=False)
         enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
-        st.markdown('</div>', unsafe_allow_html=True)
-
 with colB:
-    with st.container():
-        st.markdown('<div class="card-base card-pink">', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown('<div class="card-bg pink"></div>', unsafe_allow_html=True)
         st.markdown('<div class="card-title">🔗 URL 입력</div>', unsafe_allow_html=True)
 
         st.text_area(
@@ -189,8 +207,6 @@ with colB:
         )
         st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
         run = st.button("🚀 도서 정보 가져오기", type="primary")
-
-        st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------
 # Actions
@@ -223,8 +239,8 @@ if run:
 # ---------------------------
 # 타이틀과 버튼 간격을 최대한 붙이기 위해, 첫 컬럼 폭을 줄이고 버튼 컬럼을 바로 옆에 배치합니다.
 
-with st.container():
-    st.markdown('<div class="card-base card-yellow">', unsafe_allow_html=True)
+with st.container(border=True):
+    st.markdown('<div class="card-bg yellow"></div>', unsafe_allow_html=True)
     h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
 
     with h_col1:
@@ -279,4 +295,3 @@ with st.container():
         st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
     else:
         st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")
-    st.markdown('</div>', unsafe_allow_html=True)
