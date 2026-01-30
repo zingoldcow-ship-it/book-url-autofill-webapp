@@ -28,18 +28,24 @@ with st.expander("✅ 지원 서점 / 사용 방법 / 주의", expanded=False):
 if "rows" not in st.session_state:
     st.session_state.rows = []
 
-# URL 입력 자동 정리: 붙여넣기 시 공백/탭으로 들어온 URL을 자동 줄바꿈 처리
-if "url_input" not in st.session_state:
-    st.session_state.url_input = ""
 
-def _normalize_url_input():
-    text = st.session_state.get("url_input", "") or ""
-    # 공백/탭/줄바꿈 어디로 붙여넣어도 URL만 뽑아 한 줄에 하나씩 정리
-    urls = re.findall(r"https?://\S+", text)
-    st.session_state.url_input = "\n".join(urls)
+if "urls_text" not in st.session_state:
+    st.session_state.urls_text = ""
 
-# 버튼 상태 초기화
-run = False
+def _normalize_url_text():
+    """붙여는넣기(공백/탭 포함)를 URL 1줄=1개 형태로 자동 정리하고,
+    마지막에 개행을 붙여 커서가 다음 줄로 자연스럽게 내려가도록 합니다."""
+    raw = st.session_state.get("urls_text", "") or ""
+    raw = raw.replace("\r\n", "\n").replace("\r", "\n")
+    # 공백/탭으로 붙여넣은 URL도 분리되도록 처리
+    tokens = re.split(r"\s+", raw.strip())
+    urls = [t.strip() for t in tokens if re.match(r"^https?://", t.strip())]
+    normalized = "\n".join(urls)
+    if normalized and not normalized.endswith("\n"):
+        normalized += "\n"
+    # 변화가 있을 때만 반영 (무한 rerun 방지)
+    if normalized != raw:
+        st.session_state.urls_text = normalized
 
 colA, colB = st.columns([1, 2])
 
@@ -53,32 +59,25 @@ with colA:
 
 with colB:
     st.subheader("2) URL 입력")
-    urls_text = st.text_area(
+    st.text_area(
         "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
-        height=160,
-        key="url_input",
-        on_change=_normalize_url_input,
-        placeholder="""예)
-https://www.yes24.com/Product/Goods/168226997
-https://product.kyobobook.co.kr/detail/S000218972540
-https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918
-https://www.ypbooks.co.kr/books/202512185684862499?idKey=33""",
+        key="urls_text",
+        height=140,
+        placeholder="""예)\nhttps://www.yes24.com/Product/Goods/168226997\nhttps://product.kyobobook.co.kr/detail/S000218972540\nhttps://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918\nhttps://www.ypbooks.co.kr/books/202512185684862499?idKey=33""",
+        help="여러 URL을 한 번에 붙여넣어도 자동으로 줄바꿈 정리됩니다.",
+        on_change=_normalize_url_text,
     )
-
-    # URL 입력 영역 아래: TIP → 실행 버튼(도서 정보 가져오기)
     st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
-    run = st.button("🚀 도서 정보 가져오기", type="primary", use_container_width=False)
+    run = st.button("🚀 도서 정보 가져오기", type="primary")
 
 
 def normalize_urls(text: str) -> list[str]:
-    urls = []
-    for line in (text or "").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if not re.match(r"^https?://", line):
-            continue
-        urls.append(line)
+    """텍스트에서 http(s) URL만 추출해 중복 제거 후 반환."""
+    text = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    # 줄/공백/탭 어떤 형태로 들어와도 URL만 추출
+    tokens = re.split(r"\s+", text.strip())
+    urls = [t.strip() for t in tokens if re.match(r"^https?://", (t or "").strip())]
+
     seen, out = set(), []
     for u in urls:
         if u in seen:
@@ -110,7 +109,7 @@ COLUMN_KO = {
 SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YPBOOKS": "영풍문고"}
 
 if run:
-    urls = normalize_urls(urls_text)
+    urls = normalize_urls(st.session_state.get("urls_text",""))
     if not urls:
         st.warning("유효한 URL이 없어요. http(s)로 시작하는 상품 URL을 입력해 주세요.")
     else:
@@ -132,12 +131,12 @@ if run:
         st.session_state.rows.extend(new_rows)
         st.success(f"{len(new_rows)}개 URL을 처리했어요. 아래 테이블에 누적되었습니다.")
 
-# 3) 누적 결과 제목 + 누적 초기화 버튼(오른쪽)
-h1, h2 = st.columns([6, 1])
-with h1:
+h3, hbtn = st.columns([1.6, 8.4])
+with h3:
     st.subheader("3) 누적 결과")
-with h2:
-    clear = st.button("🧹 누적 초기화", use_container_width=True)
+with hbtn:
+    st.write("")  # 정렬용 여백
+    clear = st.button("🧹 누적 초기화", key="clear_rows")
 if clear:
     st.session_state.rows = []
     st.toast("누적 데이터를 초기화했어요.", icon="🧹")
