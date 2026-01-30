@@ -7,50 +7,6 @@ from utils.excel import to_xlsx_bytes
 
 st.set_page_config(page_title="도서 URL 자동완성", layout="wide")
 
-
-
-st.markdown("")
-<style>
-/* Page background subtle */
-.block-container { padding-top: 1.2rem; }
-
-/* Card look */
-.card-base{
-  border-radius: 18px;
-  padding: 18px 20px 16px 20px;
-  border: 1px solid rgba(0,0,0,0.06);
-  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
-}
-.card-blue{ background:#F2F6FF; }
-.card-pink{ background:#FFF2F5; }
-.card-yellow{ background:#FFF9E8; }
-
-.card-title{
-  font-size: 1.55rem;
-  font-weight: 800;
-  margin: 0 0 10px 0;
-  line-height: 1.2;
-  word-break: keep-all;
-  white-space: nowrap;
-}
-.card-sub{
-  color: rgba(0,0,0,0.62);
-  font-size: 0.95rem;
-  margin-bottom: 10px;
-}
-
-/* Keep headers from splitting like '누적결/과' */
-h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
-
-/* Make bordered containers look like cards by hiding default border */
-[data-testid="stVerticalBlockBorderWrapper"]{
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # --- Global CSS: button heights + tighter header row ---
 st.markdown(
     """
@@ -62,13 +18,44 @@ div[data-testid="stDownloadButton"] button {
     padding: 0 16px;
     font-weight: 600;
 }
+
 /* Slightly reduce default gap above/below elements */
 .block-container { padding-top: 2rem; }
+
+/* --- Card system (uses :has() to color each bordered container) --- */
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    border-radius: 18px !important;
+    border: 1px solid rgba(0,0,0,0.07) !important;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.05) !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"] > div{
+    padding: 18px 20px 16px 20px !important;
+}
+
+/* card background tones */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-blue-marker) { background: #F2F6FF !important; }
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-pink-marker) { background: #FFF2F5 !important; }
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-yellow-marker){ background: #FFF9E8 !important; }
+
+/* Card title */
+.card-title{
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 0 0 10px 0;
+    white-space: nowrap;
+    word-break: keep-all;
+}
+
+/* Prevent odd Korean word breaks in headings */
+h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
+
+/* Remove top extra spacing inside containers created by markdown */
+.card-marker{ height:0px; margin:0; padding:0; }
 </style>
 """,
     unsafe_allow_html=True,
 )
-
 st.title("📚 도서 정보 자동 채움")
 st.caption(
     "URL을 입력하고 도서 정보 가져오기 버튼을 클릭하면 ISBN/도서명/저자/출판사/가격이 자동으로 채워집니다. "
@@ -160,35 +147,36 @@ COLUMN_KO = {
 SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YPBOOKS": "영풍문고"}
 
 # ---------------------------
-# Layout: Left = site toggles, Right = URL input + fetch button
+# Layout: Cards (Left = site toggles, Right = URL input + fetch button)
 # ---------------------------
-colA, colB = st.columns([1, 2])
+colA, colB = st.columns([1, 2], gap="large")
 
 with colA:
-    st.subheader(with st.container(border=True):
-    st.markdown('<div class="card-base card-blue">', unsafe_allow_html=True)
-st.markdown("🛒 서점 선택)", unsafe_allow_html=False)
-    # 기본 OFF로 변경
-    use_kyobo = st.toggle("교보문고", value=False)
-    use_yes24 = st.toggle("YES24", value=False)
-    use_aladin = st.toggle("알라딘", value=False)
-    use_yp = st.toggle("영풍문고", value=False)
-    enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
+    with st.container(border=True):
+        st.markdown('<div class="card-marker card-blue-marker"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
+
+        # 기본 OFF
+        use_kyobo = st.toggle("교보문고", value=False)
+        use_yes24 = st.toggle("YES24", value=False)
+        use_aladin = st.toggle("알라딘", value=False)
+        use_yp = st.toggle("영풍문고", value=False)
+        enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
 with colB:
-st.markdown("</div>", unsafe_allow_html=True)
-with st.container(border=True):
-    st.markdown('<div class="card-base card-pink">', unsafe_allow_html=True)
-st.markdown("🔗 URL 입력)", unsafe_allow_html=False)
-    st.text_area(
-        "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
-        key=URLS_KEY,
-        height=140,
-        placeholder="예)\nhttps://www.yes24.com/Product/Goods/168226997\nhttps://product.kyobobook.co.kr/detail/S000218972540\nhttps://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918\nhttps://www.ypbooks.co.kr/books/202512185684862499?idKey=33",
-        on_change=_normalize_urls_in_textarea,
-    )
-    st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
-    run = st.button("🚀 도서 정보 가져오기", type="primary")
+    with st.container(border=True):
+        st.markdown('<div class="card-marker card-pink-marker"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">🔗 URL 입력</div>', unsafe_allow_html=True)
+
+        st.text_area(
+            "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
+            key=URLS_KEY,
+            height=150,
+            placeholder="예)\nhttps://www.yes24.com/Product/Goods/168226997\nhttps://product.kyobobook.co.kr/detail/S000218972540\nhttps://www.aladin.co.kr/shop/wproduct.aspx?ItemId=376765918\nhttps://www.ypbooks.co.kr/books/202512185684862499?idKey=33",
+            on_change=_normalize_urls_in_textarea,
+        )
+        st.caption("TIP: URL을 붙여넣으면 자동으로 한 줄에 하나씩 정리됩니다. (여러 URL 동시 입력 가능)")
+        run = st.button("🚀 도서 정보 가져오기", type="primary")
 
 # ---------------------------
 # Actions
@@ -216,65 +204,67 @@ if run:
         st.session_state.rows.extend(new_rows)
         st.success(f"{len(new_rows)}개 URL을 처리했어요. 아래 테이블에 누적되었습니다.")
 
-# ---------------------------
-# Section 3: Header + Buttons (Reset + Download) in same row, close to title
-# ---------------------------
-# 타이틀과 버튼 간격을 최대한 붙이기 위해, 첫 컬럼 폭을 줄이고 버튼 컬럼을 바로 옆에 배치합니다.
-h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
 
-with h_col1:
-st.markdown("")
+# ---------------------------
+# Section 3: 누적 결과 (Card)
+# ---------------------------
 with st.container(border=True):
-    st.markdown('<div class="card-base card-yellow">', unsafe_allow_html=True)
-st.markdown("📊 누적 결과")", unsafe_allow_html=False)
+    st.markdown('<div class="card-marker card-yellow-marker"></div>', unsafe_allow_html=True)
+    # ---------------------------
+    # Section 3: Header + Buttons (Reset + Download) in same row, close to title
+    # ---------------------------
+    # 타이틀과 버튼 간격을 최대한 붙이기 위해, 첫 컬럼 폭을 줄이고 버튼 컬럼을 바로 옆에 배치합니다.
+    h_col1, h_col2, h_col3, h_spacer = st.columns([1.05, 1.15, 1.90, 5.90])
 
-with h_col2:
-    st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
-    clear = st.button("🧹 누적 초기화", use_container_width=True)
+    with h_col1:
+        st.markdown('<div class="card-title">📊 누적 결과</div>', unsafe_allow_html=True)
 
-with h_col3:
-    if st.session_state.rows:
+    with h_col2:
         st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
-        df_raw_for_excel = pd.DataFrame(st.session_state.rows)
-        xbytes = to_xlsx_bytes(df_raw_for_excel)
-        st.download_button(
-            "📥 결과 엑셀(.xlsx) 다운로드",
-            data=xbytes,
-            file_name="도서_자동완성_결과.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-        )
+        clear = st.button("🧹 누적 초기화", use_container_width=True)
 
-if clear:
-    st.session_state.rows = []
-    st.toast("누적 데이터를 초기화했어요.", icon="🧹")
+    with h_col3:
+        if st.session_state.rows:
+            st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
+            df_raw_for_excel = pd.DataFrame(st.session_state.rows)
+            xbytes = to_xlsx_bytes(df_raw_for_excel)
+            st.download_button(
+                "📥 결과 엑셀(.xlsx) 다운로드",
+                data=xbytes,
+                file_name="도서_자동완성_결과.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
 
-# ---------------------------
-# Table
-# ---------------------------
-if st.session_state.rows:
-    df_raw = pd.DataFrame(st.session_state.rows)
+    if clear:
+        st.session_state.rows = []
+        st.toast("누적 데이터를 초기화했어요.", icon="🧹")
 
-    df_view = df_raw.copy()
-    if "site" in df_view.columns:
-        df_view["site"] = df_view["site"].map(SITE_KO).fillna(df_view["site"])
-    if "status" in df_view.columns:
-        df_view["status"] = df_view["status"].map(STATUS_KO).fillna(df_view["status"])
-    if "parse_mode" in df_view.columns:
-        df_view["parse_mode"] = df_view["parse_mode"].map(PARSEMODE_KO).fillna(df_view["parse_mode"])
+    # ---------------------------
+    # Table
+    # ---------------------------
+    if st.session_state.rows:
+        df_raw = pd.DataFrame(st.session_state.rows)
 
-    for c in ["list_price", "sale_price"]:
-        if c in df_view.columns:
-            df_view[c] = df_view[c].apply(fmt_won)
+        df_view = df_raw.copy()
+        if "site" in df_view.columns:
+            df_view["site"] = df_view["site"].map(SITE_KO).fillna(df_view["site"])
+        if "status" in df_view.columns:
+            df_view["status"] = df_view["status"].map(STATUS_KO).fillna(df_view["status"])
+        if "parse_mode" in df_view.columns:
+            df_view["parse_mode"] = df_view["parse_mode"].map(PARSEMODE_KO).fillna(df_view["parse_mode"])
 
-    df_view = df_view.rename(columns=COLUMN_KO)
+        for c in ["list_price", "sale_price"]:
+            if c in df_view.columns:
+                df_view[c] = df_view[c].apply(fmt_won)
 
-    preferred_cols = ["서점","상품 URL","처리상태","ISBN","도서명","저자","출판사","정가","판매가","비고","상품ID","처리방식","오류"]
-    cols = [c for c in preferred_cols if c in df_view.columns] + [c for c in df_view.columns if c not in preferred_cols]
-    st.dataframe(df_view[cols], use_container_width=True, hide_index=True)
+        df_view = df_view.rename(columns=COLUMN_KO)
 
-    ok = df_raw[df_raw["status"] == "success"] if "status" in df_raw.columns else df_raw
-    st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
-else:
-    st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")
-st.markdown("</div>", unsafe_allow_html=True)
+        preferred_cols = ["서점","상품 URL","처리상태","ISBN","도서명","저자","출판사","정가","판매가","비고","상품ID","처리방식","오류"]
+        cols = [c for c in preferred_cols if c in df_view.columns] + [c for c in df_view.columns if c not in preferred_cols]
+        st.dataframe(df_view[cols], use_container_width=True, hide_index=True)
+
+        ok = df_raw[df_raw["status"] == "success"] if "status" in df_raw.columns else df_raw
+        st.caption(f"성공: {len(ok)} / 전체: {len(df_raw)}")
+    else:
+        st.info("아직 누적된 데이터가 없어요. URL을 입력하고 **도서 정보 가져오기**를 눌러보세요.")
