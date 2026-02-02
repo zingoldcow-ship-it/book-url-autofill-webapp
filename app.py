@@ -1,4 +1,5 @@
 import re
+import urllib.parse
 import pandas as pd
 import streamlit as st
 
@@ -217,6 +218,32 @@ def normalize_urls(text: str) -> list[str]:
         out.append(u)
     return out
 
+
+def url_key(url: str) -> str:
+    """중복 판정을 위한 URL 키 (트래킹 파라미터 제거 + 정규화)."""
+    url = (url or "").strip()
+    if not url:
+        return ""
+    try:
+        p = urllib.parse.urlsplit(url)
+        # remove common tracking params (utm_*, etc.)
+        qs = urllib.parse.parse_qsl(p.query, keep_blank_values=True)
+        filtered = []
+        for k, v in qs:
+            lk = k.lower()
+            if lk.startswith("utm_"):
+                continue
+            if lk in {"ref", "referer", "from", "source", "tracking", "track", "coupon"}:
+                continue
+            filtered.append((k, v))
+        new_query = urllib.parse.urlencode(filtered, doseq=True)
+        # normalize: lower netloc, remove trailing slash in path
+        path = p.path.rstrip("/")
+        return urllib.parse.urlunsplit((p.scheme, p.netloc.lower(), path, new_query, ""))
+    except Exception:
+        return url
+
+
 def fmt_won(v):
     if v is None:
         return ""
@@ -285,16 +312,62 @@ if run:
             progress.progress(i / len(urls), text=f"파싱 중... ({i}/{len(urls)})")
         progress.empty()
 
-        existing = {str(r.get("isbn")).strip() for r in st.session_state.rows if r.get("isbn")}
-        for r in new_rows:
-            isbn = str(r.get("isbn")).strip() if r.get("isbn") else ""
-            if isbn and isbn in existing:
-                r["note"] = "⚠ 이미 추가된 도서"
-            elif isbn:
-                existing.add(isbn)
+        # --- 1) 기존 누적 결과에서 URL 기준 중복 정리 (마지막 1개만 남김) ---
+        cleaned = []
+        seen_keys = set()
+        # 뒤에서부터 순회해서 마지막 항목을 우선 유지
+        for row in reversed(st.session_state.rows):
+            k = url_key(row.get("url", ""))
+            if not k:
+                cleaned.append(row)
+                continue
+            if k in seen_keys:
+                continue
+            seen_keys.add(k)
+            cleaned.append(row)
+        st.session_state.rows = list(reversed(cleaned))
 
-        st.session_state.rows.extend(new_rows)
-        st.success(f"{len(new_rows)}개 URL을 처리했어요. 아래 테이블에 누적되었습니다.")
+        # 현재 누적된 URL → index 매핑
+        url_to_idx = {}
+        for idx, row in enumerate(st.session_state.rows):
+            k = url_key(row.get("url", ""))
+            if k:
+                url_to_idx[k] = idx
+
+        # --- 2) 이번에 파싱한 결과를 URL 기준으로 덮어쓰기(업데이트) / 신규는 추가 ---
+        updated = 0
+        appended = 0
+        for r in new_rows:
+            k = url_key(r.get("url", ""))
+            if k and k in url_to_idx:
+                # 기존 행 덮어쓰기
+                prev = st.session_state.rows[url_to_idx[k]]
+                r.setdefault("note", "")
+                if not r["note"]:
+                    r["note"] = "🔄 업데이트됨"
+                st.session_state.rows[url_to_idx[k]] = r
+                updated += 1
+            else:
+                st.session_state.rows.append(r)
+                if k:
+                    url_to_idx[k] = len(st.session_state.rows) - 1
+                appended += 1
+
+        # --- 3) ISBN 중복은 참고용으로만 표시(같은 URL 업데이트는 제외) ---
+        isbn_seen = {}
+        for i, row in enumerate(st.session_state.rows):
+            isbn = str(row.get("isbn")).strip() if row.get("isbn") else ""
+            if not isbn:
+                continue
+            if isbn in isbn_seen and url_key(st.session_state.rows[isbn_seen[isbn]].get("url","")) != url_key(row.get("url","")):
+                # 이미 다른 URL(다른 서점 등)에서 같은 ISBN이 존재
+                if not row.get("note"):
+                    row["note"] = "⚠ 이미 추가된 도서"
+            else:
+                isbn_seen[isbn] = i
+
+        st.success(f"{len(new_rows)}개 URL을 처리했어요. (신규 {appended}개 추가 / {updated}개 업데이트)")
+
 
 
 # ---------------------------
