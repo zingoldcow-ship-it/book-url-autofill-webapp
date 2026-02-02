@@ -400,8 +400,7 @@ with st.container(border=True):
 
     with h_col3:
         if st.session_state.rows:
-                    st.markdown('<span class="excel-dl-marker"></span>', unsafe_allow_html=True)
-st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
             df_raw_for_excel = pd.DataFrame(st.session_state.rows)
             xbytes = to_xlsx_bytes(df_raw_for_excel)
             st.download_button(
