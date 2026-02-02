@@ -150,7 +150,7 @@ h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
 """,
     unsafe_allow_html=True,
 )
-st.title("📚 도서 정보 자동 채움")
+st.title("📚 도서 정보 자동 채움 웹앱")
 st.caption(
     "URL을 입력하고 도서 정보 가져오기 버튼을 클릭하면 ISBN/도서명/저자/출판사/가격이 자동으로 채워집니다. "
     "결과는 누적해 엑셀로 다운로드할 수 있습니다."
