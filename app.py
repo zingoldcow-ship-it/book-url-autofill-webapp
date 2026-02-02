@@ -146,6 +146,15 @@ h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
 
 /* Remove top extra spacing inside containers created by markdown */
 .card-marker{ height:0px; margin:0; padding:0; }
+
+/* Highlight Excel download button */
+div:has(.excel-dl-marker) div[data-testid="stDownloadButton"] button{
+    background: #EAF2FF !important;
+    border: 1px solid rgba(0,0,0,0.10) !important;
+}
+div:has(.excel-dl-marker) div[data-testid="stDownloadButton"] button:hover{
+    filter: brightness(0.98);
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -391,7 +400,8 @@ with st.container(border=True):
 
     with h_col3:
         if st.session_state.rows:
-            st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
+                    st.markdown('<span class="excel-dl-marker"></span>', unsafe_allow_html=True)
+st.markdown("<div style='margin-top:-8px'></div>", unsafe_allow_html=True)
             df_raw_for_excel = pd.DataFrame(st.session_state.rows)
             xbytes = to_xlsx_bytes(df_raw_for_excel)
             st.download_button(
