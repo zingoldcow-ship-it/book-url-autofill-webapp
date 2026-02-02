@@ -149,7 +149,7 @@ h1,h2,h3,h4,h5,h6 { word-break: keep-all; }
 """,
     unsafe_allow_html=True,
 )
-st.title("📚 도서 정보 자동 채움 웹앱")
+st.title("📚 도서 정보 자동 채움")
 st.caption(
     "URL을 입력하고 도서 정보 가져오기 버튼을 클릭하면 ISBN/도서명/저자/출판사/가격이 자동으로 채워집니다. "
     "결과는 누적해 엑셀로 다운로드할 수 있습니다."
@@ -250,10 +250,10 @@ with colA:
         st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
 
         # 기본 OFF
-        use_kyobo = st.toggle("교보문고", value=False)
-        use_yes24 = st.toggle("YES24", value=False)
-        use_aladin = st.toggle("알라딘", value=False)
-        use_yp = st.toggle("영풍문고", value=False)
+        use_kyobo = st.checkbox("교보문고", value=False)
+        use_yes24 = st.checkbox("YES24", value=False)
+        use_aladin = st.checkbox("알라딘", value=False)
+        use_yp = st.checkbox("영풍문고", value=False)
         enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
 with colB:
