@@ -17,10 +17,6 @@ div[data-testid="stDownloadButton"] button {
     min-height: 44px;
     font-weight: 600;
 }
-.small-help {
-    color: #6b7280;
-    font-size: 0.92rem;
-}
 </style>
 """,
     unsafe_allow_html=True,
@@ -36,17 +32,16 @@ with st.expander("✅ 지원서점 / 사용방법 / 참고사항", expanded=True
     st.markdown(
         """
 - **지원서점:** 교보문고 / YES24 / 알라딘 / 영풍문고
-
 - **사용방법**
   1. 구매할 서점을 **체크박스에서 선택**
   2. 도서 상품 URL을 **한 줄에 하나씩 붙여넣기**
   3. **도서 정보 가져오기** 버튼 클릭
   4. 결과를 아래 표에서 확인
   5. **결과 엑셀(.xlsx) 다운로드** 버튼 클릭
-
 - **참고사항**
+  - 같은 URL을 다시 조회하면 **기존 행을 교체**합니다.
   - 일부 서점은 동적 렌더링/봇 차단으로 일반 요청 파싱이 실패할 수 있습니다.
-  - 가능한 경우 requests 기반으로 먼저 수집하고, 필요할 때만 브라우저 보조 파싱을 시도합니다.
+  - 교보문고는 requests 기반 수집을 우선 사용하고, 필요할 때만 보조 파싱을 시도합니다.
 """
     )
 
@@ -102,6 +97,7 @@ STATUS_KO = {"success": "성공", "failed": "실패", "skipped": "제외"}
 PARSEMODE_KO = {
     "requests": "자동",
     "playwright": "브라우저",
+    "search-fallback": "검색보조",
     "skipped": "제외",
     "unknown": "알수없음",
     "exception": "오류",
@@ -124,7 +120,6 @@ COLUMN_KO = {
 SITE_KO = {"KYobo": "교보문고", "YES24": "YES24", "ALADIN": "알라딘", "YPBOOKS": "영풍문고"}
 
 def upsert_rows(existing_rows: list[dict], incoming_rows: list[dict]) -> tuple[list[dict], int, int]:
-    """Same URL re-run 시 기존 행을 교체하고, 새 URL만 추가."""
     index_by_url = {}
     for idx, row in enumerate(existing_rows):
         url = str(row.get("url") or "").strip()
@@ -133,7 +128,6 @@ def upsert_rows(existing_rows: list[dict], incoming_rows: list[dict]) -> tuple[l
 
     added = 0
     updated = 0
-
     for row in incoming_rows:
         url = str(row.get("url") or "").strip()
         if url and url in index_by_url:
@@ -144,10 +138,8 @@ def upsert_rows(existing_rows: list[dict], incoming_rows: list[dict]) -> tuple[l
             if url:
                 index_by_url[url] = len(existing_rows) - 1
             added += 1
-
     return existing_rows, added, updated
 
-# 입력 영역
 left_col, right_col = st.columns([1, 2], gap="large")
 
 with left_col:
@@ -171,7 +163,7 @@ with right_col:
             "한 줄에 하나씩 상품 URL을 붙여넣으세요.",
             key=URLS_KEY,
             height=150,
-            placeholder="예)\nhttps://product.kyobobook.co.kr/detail/S000219212455\nhttps://www.yes24.com/Product/Goods/90428162",
+            placeholder="예)\nhttps://product.kyobobook.co.kr/detail/S000219379560\nhttps://www.yes24.com/Product/Goods/90428162",
             on_change=_normalize_urls_in_textarea,
         )
         st.caption("TIP: 여러 URL을 한 번에 붙여넣어도 자동으로 한 줄에 하나씩 정리됩니다.")
@@ -179,7 +171,6 @@ with right_col:
 
 if run:
     urls = normalize_urls(st.session_state.get(URLS_KEY, ""))
-
     if not any(enabled_sites.values()):
         st.warning("먼저 구매할 서점을 체크박스에서 1개 이상 선택해 주세요.")
     elif not urls:
@@ -187,18 +178,14 @@ if run:
     else:
         progress = st.progress(0, text="도서 정보를 가져오는 중...")
         new_rows = []
-
         for i, url in enumerate(urls, start=1):
             result = parse_any(url, enabled_sites=enabled_sites)
             new_rows.append(result)
             progress.progress(i / len(urls), text=f"도서 정보를 가져오는 중... ({i}/{len(urls)})")
-
         progress.empty()
 
-        # 같은 URL은 누적하지 않고 교체
         st.session_state.rows, added_cnt, updated_cnt = upsert_rows(st.session_state.rows, new_rows)
 
-        # ISBN 중복은 참고용 note만 표시
         seen_isbn = set()
         for row in st.session_state.rows:
             isbn = str(row.get("isbn") or "").strip()
@@ -213,18 +200,14 @@ if run:
 
         st.success(f"{len(new_rows)}개 URL 처리 완료 · 신규 {added_cnt}개 / 업데이트 {updated_cnt}개")
 
-# 누적 결과
 with st.container(border=True):
     title_col, reset_col, download_col = st.columns([3.0, 1.3, 2.2], gap="medium")
-
     with title_col:
         st.subheader("📊 누적 결과")
-
     with reset_col:
         if st.button("🧹 누적 초기화", use_container_width=True):
             st.session_state.rows = []
             st.rerun()
-
     with download_col:
         if st.session_state.rows:
             df_for_excel = pd.DataFrame(st.session_state.rows)

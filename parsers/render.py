@@ -46,20 +46,6 @@ def extract_kyobo_prices_playwright(url: str, timeout_ms: int = 45000) -> Tuple[
         raise RuntimeError("playwright/chromium 실행 불가")
     from playwright.sync_api import sync_playwright
 
-    def first_price_by_xpaths(page, xpaths) -> Optional[int]:
-        for xp in xpaths:
-            try:
-                loc = page.locator(f"xpath={xp}")
-                if loc.count() == 0:
-                    continue
-                txt = loc.first.inner_text().strip()
-                v = parse_price(txt)
-                if v is not None:
-                    return v
-            except Exception:
-                continue
-        return None
-
     def pick_following_price(page, label_text: str) -> Optional[int]:
         try:
             loc = page.locator(
@@ -80,13 +66,6 @@ def extract_kyobo_prices_playwright(url: str, timeout_ms: int = 45000) -> Tuple[
         except Exception:
             return None
 
-    sale_xpaths = [
-        "/html/body/div[3]/main/section[2]/div[1]/div/div[2]/div/div[3]/div[1]/div[2]/div/span[2]/span",
-    ]
-    list_xpaths = [
-        "/html/body/div[3]/main/section[2]/div[1]/div/div[2]/div/div[3]/div[1]/div[2]/div/span[3]/s",
-    ]
-
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
         context = browser.new_context(user_agent=DEFAULT_HEADERS.get("User-Agent"), locale="ko-KR")
@@ -95,17 +74,8 @@ def extract_kyobo_prices_playwright(url: str, timeout_ms: int = 45000) -> Tuple[
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1600)
 
-        sale = first_price_by_xpaths(page, sale_xpaths)
-        listp = first_price_by_xpaths(page, list_xpaths)
-
-        if sale is None:
-            sale = (
-                pick_following_price(page, "최종 판매가")
-                or pick_following_price(page, "판매가")
-                or pick_following_price(page, "할인가")
-            )
-        if listp is None:
-            listp = pick_following_price(page, "정가")
+        sale = pick_following_price(page, "최종 판매가") or pick_following_price(page, "판매가") or pick_following_price(page, "할인가")
+        listp = pick_following_price(page, "정가")
 
         html = page.content()
         final_url = page.url

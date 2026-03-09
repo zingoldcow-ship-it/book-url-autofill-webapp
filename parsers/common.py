@@ -1,19 +1,49 @@
-import json, re
+import json, re, time
 from typing import Optional, Tuple, Any
 import requests
 from bs4 import BeautifulSoup
 
 DEFAULT_HEADERS = {
     "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                   "(KHTML, like Gecko) Chrome/121.0 Safari/537.36"),
+                   "(KHTML, like Gecko) Chrome/131.0 Safari/537.36"),
     "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "Upgrade-Insecure-Requests": "1",
 }
 
+def _make_session() -> requests.Session:
+    s = requests.Session()
+    s.headers.update(DEFAULT_HEADERS)
+    return s
+
 def fetch_html(url: str, timeout: int = 20) -> Tuple[str, str]:
-    resp = requests.get(url, headers=DEFAULT_HEADERS, timeout=timeout)
-    resp.raise_for_status()
-    return resp.url, resp.text
+    """브라우저와 비슷한 헤더로 시도하고, 실패 시 모바일 UA로 한 번 더 재시도."""
+    sess = _make_session()
+    tries = [
+        {},
+        {"Referer": "https://www.google.com/"},
+        {"User-Agent": ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+                        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 "
+                        "Mobile/15E148 Safari/604.1")},
+    ]
+    last_err = None
+    for extra in tries:
+        try:
+            headers = dict(sess.headers)
+            headers.update(extra)
+            resp = sess.get(url, headers=headers, timeout=timeout, allow_redirects=True)
+            resp.raise_for_status()
+            text = resp.text or ""
+            if len(text) >= 200:
+                return resp.url, text
+        except Exception as e:
+            last_err = e
+        time.sleep(0.2)
+    if last_err:
+        raise last_err
+    raise RuntimeError("HTML을 가져오지 못했습니다.")
 
 def soup(html: str) -> BeautifulSoup:
     return BeautifulSoup(html, "lxml")
@@ -60,12 +90,12 @@ def scan_isbn(text: str) -> Optional[str]:
 
 def scan_publisher(text: str) -> Optional[str]:
     t = re.sub(r"\s+", " ", text)
-    m = re.search(r"출판사\s*[:\-]?\s*([가-힣A-Za-z0-9·&()\-\s]{2,30})", t)
+    m = re.search(r"출판사\s*[:\-]?\s*([가-힣A-Za-z0-9·&()\-\s]{2,40})", t)
     if not m:
         return None
     v = m.group(1).strip()
-    v = re.split(r"(발행일|쪽수|정가|판매가|ISBN|저자)", v)[0].strip()
-    return v[:30] if v else None
+    v = re.split(r"(발행일|쪽수|정가|판매가|ISBN|저자|리뷰)", v)[0].strip()
+    return v[:40] if v else None
 
 def scan_prices_from_text(text: str) -> tuple[Optional[int], Optional[int]]:
     t = re.sub(r"\s+", " ", text)
@@ -141,22 +171,26 @@ def extract_next_data_prices(html: str) -> tuple[Optional[int], Optional[int]]:
         lp = path.lower()
         s = 0
         if "saleprice" in lp or "sellprice" in lp or "discount" in lp or "final" in lp:
-            s += 100
-        if "listprice" in lp or "standard" in lp or "normal" in lp or "orig" in lp:
-            s += 50
-        s += min(val // 100, 300)
+            s += 4
+        if "listprice" in lp or "normalprice" in lp or "origprice" in lp or "standardprice" in lp:
+            s += 3
+        if "benefit" in lp or "point" in lp or "delivery" in lp or "coupon" in lp:
+            s -= 10
+        if val <= 6000:
+            s -= 2
         return s
 
-    candidates.sort(key=lambda x: score(x[0], x[1]), reverse=True)
-    sale_price = candidates[0][1]
-    list_price = None
-    for p,val in candidates:
-        lp = p.lower()
-        if any(k in lp for k in ["listprice","standard","normal","orig"]):
-            list_price = val
-            break
-    if list_price is None:
-        higher = [v for _,v in candidates if v >= sale_price]
-        list_price = max(higher) if higher else sale_price
+    ranked = sorted(candidates, key=lambda x: score(x[0], x[1]), reverse=True)
 
-    return (list_price, sale_price)
+    sale_price = None
+    list_price = None
+    for p, v in ranked:
+        lp = p.lower()
+        if sale_price is None and any(k in lp for k in ["saleprice","sellprice","discount","final","purchaseprice","sellingprice","currentprice","price"]):
+            sale_price = v
+        if list_price is None and any(k in lp for k in ["listprice","normalprice","origprice","standardprice","price"]):
+            list_price = v
+        if sale_price is not None and list_price is not None:
+            break
+
+    return list_price, sale_price
