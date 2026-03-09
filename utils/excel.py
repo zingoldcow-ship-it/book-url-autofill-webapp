@@ -3,7 +3,7 @@ import pandas as pd
 from openpyxl.utils import get_column_letter
 
 STATUS_KO={"success":"성공","failed":"실패","skipped":"제외"}
-PARSEMODE_KO={"requests":"자동","playwright":"브라우저","skipped":"제외","unknown":"알수없음","exception":"오류"}
+PARSEMODE_KO={"requests":"자동","playwright":"브라우저","fallback":"자동(안정화)","skipped":"제외","unknown":"알수없음","exception":"오류"}
 SITE_KO={"KYobo":"교보문고","YES24":"YES24","ALADIN":"알라딘","YPBOOKS":"영풍문고"}
 COLUMN_KO={"site":"서점","url":"상품 URL","status":"처리상태","isbn":"ISBN","title":"도서명","author":"저자",
            "publisher":"출판사","list_price":"정가","sale_price":"판매가","product_id":"상품ID",
