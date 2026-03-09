@@ -1,25 +1,11 @@
-# 📚 도서 URL 자동완성 웹앱 (Cloud 안정화판 v8)
+# 📚 도서 URL 자동완성 웹앱 (완전체 v5)
 
-이 버전은 Streamlit Community Cloud에서 갑자기 발생한 `Error installing requirements` 문제를 피하도록
-배포 구조를 다시 정리한 전체 프로젝트입니다.
+## v5: 교보문고 '5,000원' 오탐을 추가로 잡았습니다
+교보문고는 페이지에 배송비/혜택/적립금 등 5,000원 값이 자주 등장해, 텍스트/JSON에서 오탐이 발생할 수 있습니다.
 
-## 핵심 변경점
-- `runtime.txt` 추가: Python 3.11 고정
-- `requirements.txt` 전체 버전 고정
-- `packages.txt` 제거: apt 충돌 제거
-- `postBuild` 제거: Playwright 브라우저 설치 단계 제거
-- 파서 안정화: 브라우저 렌더링 의존성이 없어도 앱이 계속 실행되도록 폴백 처리
+v5 해결:
+- (기존) __NEXT_DATA__ 기반 가격 추출 유지
+- (추가) 가격이 6,000원 이하로 의심되면, Playwright로 렌더링 후
+  **'판매가/정가' 라벨 근처의 실제 표시 가격**을 직접 추출해 우선 적용
 
-## 왜 기존 배포가 깨졌나
-기존 `packages.txt`가 Debian bullseye 시절 패키지 이름/의존성을 전제로 작성되어 있었는데,
-현재 Streamlit Cloud 빌드 환경(trixie)와 충돌하면서 `libglib2.0-0`, `libffi7`, `libpcre3`, `libcups2`
-의존성 해석이 깨졌습니다.
-
-## 실행
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-## 배포
-이 폴더 전체를 GitHub 저장소 루트에 그대로 올리고 Streamlit Cloud에서 Redeploy 하세요.
+이 방식은 배송비/혜택 영역 값을 피하고, 실제 상품 가격 영역을 타겟팅합니다.
