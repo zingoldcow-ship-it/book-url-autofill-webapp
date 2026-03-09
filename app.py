@@ -250,10 +250,10 @@ with colA:
         st.markdown('<div class="card-title">🛒 서점 선택</div>', unsafe_allow_html=True)
 
         # 기본 OFF
-        use_kyobo = st.toggle("교보문고", value=False)
-        use_yes24 = st.toggle("YES24", value=False)
-        use_aladin = st.toggle("알라딘", value=False)
-        use_yp = st.toggle("영풍문고", value=False)
+        use_kyobo = st.checkbox("교보문고", value=False)
+        use_yes24 = st.checkbox("YES24", value=False)
+        use_aladin = st.checkbox("알라딘", value=False)
+        use_yp = st.checkbox("영풍문고", value=False)
         enabled_sites = {"KYobo": use_kyobo, "YES24": use_yes24, "ALADIN": use_aladin, "YPBOOKS": use_yp}
 
 with colB:
@@ -275,7 +275,9 @@ with colB:
 # ---------------------------
 if run:
     urls = normalize_urls(st.session_state.get(URLS_KEY, ""))
-    if not urls:
+    if not any(enabled_sites.values()):
+        st.warning("먼저 구매할 서점을 체크박스에서 1개 이상 선택해 주세요.")
+    elif not urls:
         st.warning("유효한 URL이 없어요. http(s)로 시작하는 상품 URL을 입력해 주세요.")
     else:
         progress = st.progress(0, text="파싱 중...")

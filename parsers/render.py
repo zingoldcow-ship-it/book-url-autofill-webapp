@@ -16,7 +16,6 @@ def ensure_playwright_installed() -> None:
         return
     except Exception:
         subprocess.run(["playwright", "install", "chromium"], check=False)
-        # 설치 후에도 브라우저 런치가 불가능할 수 있으므로, 실제 사용 시점에 다시 검증하게 둡니다.
 
 def fetch_html_playwright(url: str, timeout_ms: int = 45000) -> Tuple[str, str]:
     ensure_playwright_installed()
