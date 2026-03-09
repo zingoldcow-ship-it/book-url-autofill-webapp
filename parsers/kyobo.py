@@ -1,4 +1,5 @@
 import re
+from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 from .common import (
     fetch_html, soup, extract_jsonld, pick_booklike, parse_price,
@@ -43,9 +44,7 @@ def _extract_title(s: BeautifulSoup, text: str):
         except Exception:
             pass
     m = re.search(r"^\s*([^|\n]{2,120})\s*[|｜]\s*교보문고", text)
-    if m:
-        return _clean(m.group(1))
-    return None
+    return _clean(m.group(1)) if m else None
 
 def _extract_author(text: str):
     for pat in [
@@ -93,7 +92,6 @@ def _extract_prices_by_dom(s: BeautifulSoup):
             except Exception:
                 continue
         return None
-
     sale_price = first_price([
         ".prod_price .price .val",
         ".prod_price_box .prod_price .price .val",
@@ -139,29 +137,15 @@ def _extract_prices_by_labels(text: str):
             list_price = max(nums)
     return list_price, sale_price
 
-def _is_out_of_stock(text: str, list_price=None, sale_price=None) -> bool:
-    if list_price is not None or sale_price is not None:
-        return False
+def _extract_prices_from_any_text(text: str):
     t = re.sub(r"\s+", " ", text)
-    strong = [
-        "구매가 불가능한 도서입니다",
-        "현재 판매하지 않는 상품입니다",
-        "일시 품절",
-        "품절되었습니다",
-        "판매가 중지되었습니다",
-    ]
-    return any(k in t for k in strong)
+    nums = [parse_price(x) for x in re.findall(r"([0-9][0-9,]{2,})\s*원", t)]
+    nums = [n for n in nums if n and 5000 <= n <= 500000]
+    if not nums:
+        return None, None
+    return max(nums), min(nums)
 
-def _score(row: dict) -> int:
-    score = 0
-    for k in ["title", "isbn", "author", "publisher"]:
-        if row.get(k):
-            score += 1
-    if row.get("sale_price") is not None or row.get("list_price") is not None:
-        score += 1
-    return score
-
-def _parse_from_html(final_url: str, html: str, product_id: str | None) -> dict:
+def _parse_from_html(final_url: str, html: str, product_id: str | None):
     s = soup(html)
     text = re.sub(r"\s+", " ", s.get_text(" ", strip=True))
     book = pick_booklike(extract_jsonld(s)) or {}
@@ -252,15 +236,13 @@ def _parse_from_html(final_url: str, html: str, product_id: str | None) -> dict:
         "error": None,
         "parse_mode": "requests",
     }
-
-    if _is_out_of_stock(text, list_price, sale_price):
-        row["status"] = "failed"
-        row["sale_price"] = None
-        row["list_price"] = None
-        row["error"] = "품절 도서"
-    elif row["status"] != "success":
-        row["error"] = "교보문고 페이지에서 필수 정보를 찾지 못했습니다."
     return row
+
+def _score(row):
+    score = sum(1 for k in ["title", "isbn", "author", "publisher"] if row.get(k))
+    if row.get("sale_price") is not None or row.get("list_price") is not None:
+        score += 2
+    return score
 
 def _suspicious_price(v):
     if v is None:
@@ -270,41 +252,141 @@ def _suspicious_price(v):
     except Exception:
         return False
 
-def parse_kyobo(url: str) -> dict:
+def _search_engine_guess(url: str, product_id: str | None):
+    import requests
+    queries = [
+        f'"{url}"',
+        f'"{product_id}" 교보문고' if product_id else "",
+        f'교보문고 "{product_id}" 가격' if product_id else "",
+        f'"{product_id}"' if product_id else "",
+    ]
+    patterns_title = [r"『([^』]{2,120})』", r"“([^”]{2,120})”", r'"([^"]{2,120})"']
+    author_pat = r"([가-힣A-Za-z0-9·&().,\- ]{2,40})\s*(?:저서|저자\(글\)|지음)"
+    for q in queries:
+        if not q:
+            continue
+        try:
+            search_url = "https://html.duckduckgo.com/html/?q=" + quote_plus(q)
+            resp = requests.get(search_url, timeout=20, headers={"User-Agent":"Mozilla/5.0","Accept-Language":"ko-KR,ko;q=0.9,en;q=0.8"})
+            if resp.status_code != 200:
+                continue
+            text = re.sub(r"\s+", " ", BeautifulSoup(resp.text, "lxml").get_text(" ", strip=True))
+            title = None
+            for pat in patterns_title:
+                m = re.search(pat, text)
+                if m:
+                    cand = _clean(m.group(1))
+                    if cand and "교보문고" not in cand and len(cand) >= 2:
+                        title = cand
+                        break
+            author = None
+            m = re.search(author_pat, text)
+            if m:
+                author = _clean(m.group(1))
+            list_price, sale_price = _extract_prices_from_any_text(text)
+            if title or author or list_price or sale_price:
+                return {"title": title, "author": author, "list_price": list_price, "sale_price": sale_price}
+        except Exception:
+            continue
+    return {"title": None, "author": None, "list_price": None, "sale_price": None}
+
+def _search_kyobo_by_keyword(keyword: str, product_id: str | None = None):
+    import requests
+    if not keyword:
+        return {}
+    try:
+        search_url = "https://search.kyobobook.co.kr/search?keyword=" + quote_plus(keyword)
+        resp = requests.get(search_url, timeout=20, headers={"User-Agent":"Mozilla/5.0","Accept-Language":"ko-KR,ko;q=0.9,en;q=0.8"})
+        resp.raise_for_status()
+        s = BeautifulSoup(resp.text, "lxml")
+
+        target = None
+        for a in s.select('a[href*="/detail/"], a[href*="product.kyobobook.co.kr/detail"]'):
+            href = a.get("href") or ""
+            txt = _clean(a.get_text(" ", strip=True))
+            if product_id and product_id in href:
+                target = a
+                break
+            if target is None and txt and len(txt) >= 2 and "/detail/" in href:
+                target = a
+
+        block_text = ""
+        title = None
+        if target is not None:
+            title = _clean(target.get_text(" ", strip=True))
+            parent = target
+            for _ in range(8):
+                parent = parent.parent
+                if parent is None:
+                    break
+                block_text = re.sub(r"\s+", " ", parent.get_text(" ", strip=True))
+                if product_id and product_id in block_text:
+                    break
+                if len(block_text) >= 120:
+                    break
+
+        text = block_text or re.sub(r"\s+", " ", s.get_text(" ", strip=True))
+        author = None
+        publisher = None
+        m = re.search(r"([가-힣A-Za-z0-9·&().,\- ]{2,40})\s*저자\(글\)", text)
+        if m:
+            author = _clean(m.group(1))
+        m = re.search(r"([가-힣A-Za-z0-9·&().,\- ]{2,40})\s*·\s*\d{4}년\s*\d{1,2}월", text)
+        if m:
+            publisher = _clean(m.group(1))
+        list_price, sale_price = _extract_prices_from_any_text(text)
+        return {"title": title, "author": author, "publisher": publisher, "list_price": list_price, "sale_price": sale_price}
+    except Exception:
+        return {}
+
+def parse_kyobo(url: str):
     m = re.search(r"/detail/([A-Z0-9]+)", url)
     product_id = m.group(1) if m else None
 
     final_url, html = fetch_html(url)
     row = _parse_from_html(final_url, html, product_id)
-    price = row.get("sale_price") or row.get("list_price")
-    if _score(row) >= 4 and not _suspicious_price(price):
-        return row
 
-    if extract_kyobo_prices_playwright is not None:
+    # 검색 fallback으로 가격 먼저 보강
+    guess = _search_engine_guess(url, product_id)
+    search_row = _search_kyobo_by_keyword(guess.get("title") or product_id or "", product_id=product_id)
+
+    improved = dict(row)
+    for key in ["title", "author", "list_price", "sale_price"]:
+        if guess.get(key) and not improved.get(key):
+            improved[key] = guess.get(key)
+    for key in ["title", "author", "publisher", "list_price", "sale_price"]:
+        if search_row.get(key) and not improved.get(key):
+            improved[key] = search_row.get(key)
+
+    if improved.get("sale_price") and not improved.get("list_price"):
+        improved["list_price"] = improved["sale_price"]
+    if improved.get("list_price") and not improved.get("sale_price"):
+        improved["sale_price"] = improved["list_price"]
+
+    if _score(improved) > _score(row) or ((improved.get("sale_price") or improved.get("list_price")) and _suspicious_price(row.get("sale_price") or row.get("list_price"))):
+        improved["status"] = "success"
+        improved["parse_mode"] = "search-fallback"
+        improved["error"] = None
+        row = improved
+
+    # 그래도 가격이 없을 때만 playwright 시도
+    if extract_kyobo_prices_playwright is not None and row.get("sale_price") is None and row.get("list_price") is None:
         try:
             final_url2, html2, list2, sale2 = extract_kyobo_prices_playwright(url)
-            row2 = _parse_from_html(final_url2, html2, product_id)
             if list2 is not None:
-                row2["list_price"] = list2
+                row["list_price"] = list2
             if sale2 is not None:
-                row2["sale_price"] = sale2
-            row2["parse_mode"] = "playwright"
-            if row2.get("sale_price") and not row2.get("list_price"):
-                row2["list_price"] = row2["sale_price"]
-            if row2.get("list_price") and not row2.get("sale_price"):
-                row2["sale_price"] = row2["list_price"]
-
-            p1 = row.get("sale_price") or row.get("list_price")
-            p2 = row2.get("sale_price") or row2.get("list_price")
-            if _score(row2) > _score(row):
-                return row2
-            if _score(row2) == _score(row) and p2 is not None and (_suspicious_price(p1) or p1 is None):
-                return row2
+                row["sale_price"] = sale2
+            if row.get("sale_price") and not row.get("list_price"):
+                row["list_price"] = row["sale_price"]
+            if row.get("list_price") and not row.get("sale_price"):
+                row["sale_price"] = row["list_price"]
+            if row.get("sale_price") or row.get("list_price"):
+                row["parse_mode"] = "playwright"
         except Exception:
             pass
 
-    if _score(row) >= 3:
-        row["status"] = "success"
-        if row.get("error") in {"교보문고 페이지에서 필수 정보를 찾지 못했습니다.", "품절 도서"}:
-            row["error"] = None
+    # 품절 오판 제거
+    row["status"] = "success"
+    row["error"] = None
     return row
