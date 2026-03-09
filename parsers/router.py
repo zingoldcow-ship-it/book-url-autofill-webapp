@@ -16,7 +16,7 @@ def parse_any(url: str, enabled_sites: Dict[str, bool]) -> dict:
     site = detect_site(url)
     if site in enabled_sites and not enabled_sites.get(site, True):
         return {"site": site, "url": url, "status": "skipped",
-                "error": "해당 서점이 비활성화(토글 OFF) 상태라 건너뛰었습니다.", "parse_mode": "skipped"}
+                "error": "해당 서점이 비활성화(체크 해제) 상태라 건너뛰었습니다.", "parse_mode": "skipped"}
     try:
         if site == "YES24": return parse_yes24(url)
         if site == "ALADIN": return parse_aladin(url)
